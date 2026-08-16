@@ -126,13 +126,17 @@ export const GameView: React.FC<GameViewProps> = ({
   const handleProceedToAd = () => {
     setIsAutoPaused(true);
     setShowAdModal(true);
-    setAdTimer(3);
+    setAdTimer(5); // 5 seconds required watch duration
 
-    // Countdown 3 seconds before skip becomes active
     const timer = setInterval(() => {
       setAdTimer((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          // Auto move to next level after ad watching finishes!
+          setTimeout(() => {
+            setShowAdModal(false);
+            onNextLevel();
+          }, 600);
           return 0;
         }
         return prev - 1;
@@ -147,6 +151,10 @@ export const GameView: React.FC<GameViewProps> = ({
 
   const handleVisitAdLink = () => {
     window.open(AD_URL, '_blank', 'noopener,noreferrer');
+    // Automatically complete ad and move to next level upon clicking ad
+    setTimeout(() => {
+      handleCompleteAdAndNextLevel();
+    }, 400);
   };
 
   // Ensure full screen when playing
@@ -742,13 +750,13 @@ export const GameView: React.FC<GameViewProps> = ({
         </div>
       )}
 
-      {/* Interstitial High-CPM Financial Ad Modal (Triggers directly between levels) */}
+      {/* Interstitial Ad Popup Modal (Triggers on same screen between levels) */}
       {showAdModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/92 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
-          <div className="bg-gradient-to-b from-[#1E1B4B] via-[#0F172A] to-[#0B132B] border-2 border-amber-400/70 rounded-3xl w-full max-w-md p-5 sm:p-6 text-white shadow-[0_0_40px_rgba(245,158,11,0.3)] text-center relative overflow-hidden flex flex-col items-center">
-            {/* Level Victory Header inside Ad Modal */}
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-lg flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+          <div className="bg-gradient-to-b from-[#1E1B4B] via-[#0F172A] to-[#0B132B] border-2 border-amber-400/80 rounded-3xl w-full max-w-lg p-4 sm:p-6 text-white shadow-[0_0_50px_rgba(245,158,11,0.4)] text-center relative overflow-hidden flex flex-col items-center">
+            {/* Level Completion Header */}
             {winStats && (
-              <div className="w-full bg-slate-900/80 border border-amber-400/30 rounded-2xl p-2.5 mb-3 flex items-center justify-between text-xs">
+              <div className="w-full bg-slate-900/90 border border-amber-400/40 rounded-2xl p-2.5 mb-3 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-black text-amber-300">
                   <Trophy className="w-4 h-4 text-amber-400" />
                   <span>LEVEL {levelConfig.levelNumber} COMPLETE!</span>
@@ -767,60 +775,49 @@ export const GameView: React.FC<GameViewProps> = ({
               </div>
             )}
 
-            {/* Top High CPM Financial Network Pill */}
+            {/* Top Sponsor Pill */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-3">
               <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>💎 HIGH-CPM FINANCIAL NETWORK SPONSOR 💎</span>
+              <span>SPONSORED ADVERTISEMENT</span>
             </div>
 
-            {/* Financial Ad Banner Frame */}
-            <div className="w-full bg-slate-900/90 border border-emerald-500/40 rounded-2xl p-4 my-1 flex flex-col items-center gap-3 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative overflow-hidden">
-              <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
-
-              {/* Financial/Trading Icon Badge */}
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-400 p-0.5 shadow-[0_0_25px_rgba(16,185,129,0.5)] flex items-center justify-center">
-                <span className="text-2xl sm:text-3xl">📈</span>
+            {/* Embedded Ad Frame / Interactive Offer on same screen */}
+            <div className="w-full bg-slate-900/95 border border-slate-700 rounded-2xl p-3 my-1 flex flex-col items-center gap-3 shadow-inner relative overflow-hidden">
+              <div className="w-full h-44 sm:h-52 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative">
+                <iframe
+                  src={AD_URL}
+                  title="Sponsored Ad"
+                  className="w-full h-full border-0 rounded-xl"
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                />
               </div>
 
-              <div className="space-y-1">
-                <h3 className="text-xs sm:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-teal-200 tracking-wide uppercase">
-                  EXCLUSIVE FINANCIAL & WEALTH OFFER
-                </h3>
-                <p className="text-[11px] sm:text-xs text-slate-300 font-medium leading-relaxed max-w-xs">
-                  Unlock high-yield trading signals, forex insights & claim up to <span className="text-emerald-400 font-bold">$500 sponsor bonus credits</span>!
-                </p>
+              <div className="w-full flex flex-col items-center gap-2">
+                <button
+                  onClick={handleVisitAdLink}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-500 hover:from-amber-300 hover:to-rose-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-[0_0_20px_rgba(251,191,36,0.5)] flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border border-amber-200 hover:scale-102"
+                >
+                  <span>🔥 OPEN SPONSOR OFFER & NEXT LEVEL 🔥</span>
+                  <ExternalLink className="w-4 h-4 text-slate-950 stroke-[3]" />
+                </button>
               </div>
-
-              {/* High CPM Action Button linking to sponsor URL */}
-              <button
-                onClick={handleVisitAdLink}
-                className="w-full py-3 px-3 sm:px-4 bg-gradient-to-r from-amber-400 via-emerald-400 to-teal-400 hover:from-amber-300 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-[0_0_20px_rgba(251,191,36,0.6)] flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border border-amber-200 hover:scale-102"
-              >
-                <span>🔥 VISIT FINANCIAL SPONSOR 🔥</span>
-                <ExternalLink className="w-4 h-4 text-slate-950 stroke-[3]" />
-              </button>
             </div>
 
-            {/* Countdown / Skip Button */}
-            <div className="w-full mt-3 space-y-2">
-              <button
-                onClick={handleCompleteAdAndNextLevel}
-                disabled={adTimer > 0}
-                className={`w-full py-3 sm:py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
-                  adTimer > 0
-                    ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-300/40'
-                }`}
-              >
+            {/* Watch Progress & Automatic Next Level Indicator */}
+            <div className="w-full mt-3">
+              <div className="w-full py-3 px-4 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider bg-slate-900/80 border border-amber-400/30 text-amber-300 flex items-center justify-center gap-2">
                 {adTimer > 0 ? (
-                  <span>CONTINUE IN {adTimer}s...</span>
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    <span>WATCHING AD... AUTOMATIC NEXT LEVEL IN {adTimer}s</span>
+                  </>
                 ) : (
                   <>
-                    <span>SKIP AD & PLAY NEXT LEVEL</span>
-                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="text-emerald-400">AD COMPLETE! MOVING TO NEXT LEVEL...</span>
                   </>
                 )}
-              </button>
+              </div>
             </div>
           </div>
         </div>
