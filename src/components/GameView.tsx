@@ -3,25 +3,23 @@
  * Core gameplay board, fruit movement logic, win detection, UNDO, HINT, RESTART, and Win Modal.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import {
   RotateCcw,
   Lightbulb,
   RefreshCw,
   Star,
-  Play,
   Trophy,
   ArrowRight,
-  Shield,
   Zap,
 } from 'lucide-react';
 import { Basket, LevelConfig, MoveRecord, PlayerProfile } from '../types';
 import { BasketContainer } from './BasketContainer';
 import { audio } from '../lib/audio';
 import { executeMove, isBoardSolved, isMoveLegal, solvePuzzle } from '../lib/solver';
-import { FRUITS } from '../lib/fruits';
 import { THEMES } from '../lib/themes';
+import { getBottleThemeForLevel } from '../lib/bottleThemes';
 
 interface GameViewProps {
   levelConfig: LevelConfig;
@@ -40,9 +38,9 @@ export const GameView: React.FC<GameViewProps> = ({
   onNextLevel,
   onReplayLevel,
   onOpenLevelSelect,
-  onOpenProfiles,
 }) => {
   const theme = THEMES[player.currentTheme] || THEMES.classic;
+  const bottleTheme = getBottleThemeForLevel(levelConfig.levelNumber);
 
   const [baskets, setBaskets] = useState<Basket[]>(levelConfig.initialBaskets);
   const [selectedBasketIdx, setSelectedBasketIdx] = useState<number | null>(null);
@@ -52,6 +50,10 @@ export const GameView: React.FC<GameViewProps> = ({
   const [hintMove, setHintMove] = useState<{ from: number; to: number } | null>(null);
   const [isWon, setIsWon] = useState(false);
   const [winStats, setWinStats] = useState<{ stars: number; earnedScore: number } | null>(null);
+
+  // Auto-advance timer (seconds countdown)
+  const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<number | null>(null);
+  const [isAutoPaused, setIsAutoPaused] = useState(false);
 
   // Re-initialize state when levelConfig changes
   useEffect(() => {
@@ -63,7 +65,31 @@ export const GameView: React.FC<GameViewProps> = ({
     setHintMove(null);
     setIsWon(false);
     setWinStats(null);
+    setAutoAdvanceTimer(null);
+    setIsAutoPaused(false);
   }, [levelConfig]);
+
+  // Handle automatic progression to next level on win
+  useEffect(() => {
+    if (!isWon || isAutoPaused) {
+      return;
+    }
+
+    setAutoAdvanceTimer(2);
+    const interval = setInterval(() => {
+      setAutoAdvanceTimer((prev) => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(interval);
+          onNextLevel();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isWon, isAutoPaused, onNextLevel]);
 
   // Handle basket selection and fruit movement
   const handleSelectBasket = (targetIdx: number) => {
@@ -137,13 +163,13 @@ export const GameView: React.FC<GameViewProps> = ({
     setIsWon(true);
     audio.playLevelWin();
 
-    // Fire Celebratory Confetti Burst
+    // Fire Celebratory Confetti Burst using level-specific bottle theme colors
     try {
       confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: theme.particleColors,
+        particleCount: 110,
+        spread: 80,
+        origin: { y: 0.55 },
+        colors: bottleTheme.particleColors,
       });
     } catch {
       // ignore
@@ -158,7 +184,6 @@ export const GameView: React.FC<GameViewProps> = ({
     }
 
     // Calculate Score Points
-    const moveScore = finalMoves * 5;
     const completionBonus = 50;
     const starBonus = stars * 25;
     const noHintBonus = hints === 0 ? 10 : 0;
@@ -253,30 +278,26 @@ export const GameView: React.FC<GameViewProps> = ({
         from: solverResult.nextBestMove.fromIndex,
         to: solverResult.nextBestMove.toIndex,
       });
-    } else {
-      // If stuck, suggest restarting
-      alert('No legal winning moves from this state! Try using Undo or Restarting the level.');
     }
   };
 
   return (
-    <div className={`w-full flex-1 flex flex-col items-center justify-between p-3 bg-gradient-to-b ${theme.bgGradient} text-white min-h-[calc(100vh-56px)]`}>
-      {/* Top Status Banner */}
-      <div className={`w-full max-w-xl ${theme.cardBg} border rounded-2xl p-3 flex items-center justify-between shadow-xl mb-3`}>
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-black text-lg">
-            {levelConfig.levelNumber}
+    <div className="w-full flex-1 flex flex-col items-center justify-between p-3 bg-[#F7F9F2] text-[#4A4941] min-h-[calc(100vh-56px)]">
+      {/* Top Level & Bottle Color Header */}
+      <div className="w-full max-w-xl bg-white border border-[#E0E2D9] rounded-2xl p-3 flex items-center justify-between shadow-xs mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-10 h-10 rounded-xl ${bottleTheme.accentBadgeBg} ${bottleTheme.accentText} border border-[#86A789]/30 flex flex-col items-center justify-center font-black text-sm shadow-xs`}>
+            <span>LVL</span>
+            <span className="text-base leading-none">{levelConfig.levelNumber}</span>
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+            <h2 className="text-sm font-black tracking-tight text-[#4A4941] flex items-center gap-2">
               <span>LEVEL {levelConfig.levelNumber}</span>
-              {levelConfig.isChallenge && (
-                <span className="text-[9px] bg-rose-500 text-white font-black px-1.5 py-0.5 rounded uppercase">
-                  CHALLENGE
-                </span>
-              )}
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bottleTheme.accentBadgeBg} ${bottleTheme.accentText}`}>
+                Theme: {bottleTheme.name}
+              </span>
             </h2>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-[#9A9B8F] font-medium">
               Target Moves: {levelConfig.maxMovesTarget}
             </span>
           </div>
@@ -285,10 +306,10 @@ export const GameView: React.FC<GameViewProps> = ({
         {/* Moves & Stars */}
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-end">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+            <span className="text-[10px] text-[#9A9B8F] font-bold uppercase tracking-wider">
               MOVES
             </span>
-            <span className="text-xl font-black text-amber-400">
+            <span className="text-xl font-black text-[#5F6F52]">
               {movesCount}
             </span>
           </div>
@@ -308,8 +329,8 @@ export const GameView: React.FC<GameViewProps> = ({
                   key={s}
                   className={`w-5 h-5 ${
                     hasStar
-                      ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-                      : 'text-slate-600'
+                      ? 'fill-[#86A789] text-[#86A789]'
+                      : 'text-[#E0E2D9]'
                   }`}
                 />
               );
@@ -318,8 +339,8 @@ export const GameView: React.FC<GameViewProps> = ({
         </div>
       </div>
 
-      {/* Main Baskets Grid */}
-      <div className="w-full max-w-2xl flex-1 flex items-center justify-center py-4">
+      {/* Main Baskets / Bottles Grid */}
+      <div className="w-full max-w-2xl flex-1 flex items-center justify-center py-3">
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-5 place-items-center w-full">
           {baskets.map((b, idx) => {
             const isSelected = selectedBasketIdx === idx;
@@ -338,9 +359,10 @@ export const GameView: React.FC<GameViewProps> = ({
                 isHintSource={hintMove?.from === idx}
                 isHintTarget={hintMove?.to === idx}
                 onSelect={handleSelectBasket}
-                basketBorderClass={theme.basketBorder}
-                basketBgClass={theme.basketBg}
-                woodAccentClass={theme.woodAccent}
+                basketBorderClass={bottleTheme.glassBorder}
+                basketBgClass={bottleTheme.glassTintBg}
+                woodAccentClass={`${bottleTheme.accentBadgeBg} ${bottleTheme.accentText}`}
+                rimBgClass={bottleTheme.rimBg}
               />
             );
           })}
@@ -348,22 +370,22 @@ export const GameView: React.FC<GameViewProps> = ({
       </div>
 
       {/* Bottom Control Toolbar */}
-      <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 backdrop-blur-md rounded-2xl p-2.5 flex items-center justify-around shadow-2xl mt-2 z-20">
+      <div className="w-full max-w-md bg-white border border-[#E0E2D9] rounded-2xl p-2.5 flex items-center justify-around shadow-sm mt-2 z-20">
         <button
           onClick={handleUndo}
           disabled={moveHistory.length === 0 || isWon}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-slate-800 disabled:opacity-30 text-slate-200 transition-all active:scale-95"
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] disabled:opacity-30 text-[#4A4941] transition-all active:scale-95 cursor-pointer"
         >
-          <RotateCcw className="w-5 h-5 text-amber-400" />
+          <RotateCcw className="w-5 h-5 text-[#5F6F52]" />
           <span className="text-[10px] font-bold">UNDO</span>
         </button>
 
         <button
           onClick={handleHint}
           disabled={isWon}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-slate-800 disabled:opacity-30 text-slate-200 transition-all active:scale-95 relative"
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] disabled:opacity-30 text-[#4A4941] transition-all active:scale-95 cursor-pointer"
         >
-          <Lightbulb className="w-5 h-5 text-amber-400" />
+          <Lightbulb className="w-5 h-5 text-[#86A789]" />
           <span className="text-[10px] font-bold">HINT</span>
         </button>
 
@@ -372,9 +394,9 @@ export const GameView: React.FC<GameViewProps> = ({
             audio.playClick();
             onReplayLevel();
           }}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-slate-800 text-slate-200 transition-all active:scale-95"
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] text-[#4A4941] transition-all active:scale-95 cursor-pointer"
         >
-          <RefreshCw className="w-5 h-5 text-emerald-400" />
+          <RefreshCw className="w-5 h-5 text-[#5F6F52]" />
           <span className="text-[10px] font-bold">RESTART</span>
         </button>
 
@@ -383,26 +405,26 @@ export const GameView: React.FC<GameViewProps> = ({
             audio.playClick();
             onOpenLevelSelect();
           }}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-slate-800 text-slate-200 transition-all active:scale-95"
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] text-[#4A4941] transition-all active:scale-95 cursor-pointer"
         >
-          <Zap className="w-5 h-5 text-sky-400" />
+          <Zap className="w-5 h-5 text-[#86A789]" />
           <span className="text-[10px] font-bold">LEVELS</span>
         </button>
       </div>
 
-      {/* Level Complete Win Modal */}
+      {/* Level Complete Win Modal with Automatic Next Level */}
       {isWon && winStats && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-amber-500/60 rounded-3xl w-full max-w-sm p-6 text-white shadow-2xl text-center relative overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#F7F9F2] border border-[#E0E2D9] rounded-3xl w-full max-w-sm p-6 text-[#4A4941] shadow-2xl text-center relative overflow-hidden">
             {/* Header Fanfare Banner */}
-            <div className="inline-flex p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mb-3">
+            <div className="inline-flex p-3 rounded-2xl bg-[#E9EDC9] text-[#5F6F52] border border-[#86A789]/40 mb-3">
               <Trophy className="w-10 h-10 animate-bounce" />
             </div>
 
-            <h2 className="text-2xl font-black tracking-tight text-white uppercase">
+            <h2 className="text-2xl font-black tracking-tight text-[#4A4941] uppercase">
               PUZZLE SOLVED!
             </h2>
-            <p className="text-xs text-amber-300 mt-0.5 font-medium">
+            <p className="text-xs text-[#5F6F52] mt-0.5 font-bold">
               Level {levelConfig.levelNumber} Completed
             </p>
 
@@ -413,37 +435,50 @@ export const GameView: React.FC<GameViewProps> = ({
                   key={s}
                   className={`w-9 h-9 ${
                     s <= winStats.stars
-                      ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] scale-110'
-                      : 'text-slate-700'
+                      ? 'fill-[#86A789] text-[#86A789] scale-110'
+                      : 'text-[#E0E2D9]'
                   } transition-all duration-300`}
                 />
               ))}
             </div>
 
             {/* Stats Breakdown */}
-            <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 my-4 space-y-1.5 text-xs text-slate-300">
+            <div className="bg-white border border-[#E0E2D9] rounded-2xl p-3 my-4 space-y-1.5 text-xs text-[#4A4941]">
               <div className="flex justify-between items-center">
-                <span>Moves Taken:</span>
-                <span className="font-bold text-white">{movesCount}</span>
+                <span className="text-[#9A9B8F] font-medium">Moves Taken:</span>
+                <span className="font-bold text-[#4A4941]">{movesCount}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span>Score Earned:</span>
-                <span className="font-bold text-amber-400">
+                <span className="text-[#9A9B8F] font-medium">Score Earned:</span>
+                <span className="font-bold text-[#5F6F52]">
                   +{winStats.earnedScore} pts
                 </span>
               </div>
             </div>
 
+            {/* Auto-Advance Notification Banner */}
+            {autoAdvanceTimer !== null && !isAutoPaused && (
+              <div className="bg-[#E9EDC9] border border-[#86A789]/50 rounded-xl p-2.5 mb-4 text-xs font-bold text-[#5F6F52] flex items-center justify-between">
+                <span>Auto-advancing to Level {levelConfig.levelNumber + 1} in {autoAdvanceTimer}s...</span>
+                <button
+                  onClick={() => setIsAutoPaused(true)}
+                  className="text-[10px] underline font-extrabold hover:text-[#4A4941]"
+                >
+                  PAUSE
+                </button>
+              </div>
+            )}
+
             {/* Action Buttons */}
-            <div className="space-y-2 mt-5">
+            <div className="space-y-2 mt-4">
               <button
                 onClick={() => {
                   audio.playClick();
                   onNextLevel();
                 }}
-                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-black text-sm rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 uppercase tracking-wide"
+                className="w-full py-3.5 bg-[#5F6F52] hover:bg-[#4F5F42] text-white font-black text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
               >
-                <span>NEXT LEVEL</span>
+                <span>NEXT LEVEL NOW</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
 
@@ -453,7 +488,7 @@ export const GameView: React.FC<GameViewProps> = ({
                     audio.playClick();
                     onReplayLevel();
                   }}
-                  className="py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl text-slate-200 transition-colors"
+                  className="py-2.5 bg-[#FEFAE0] border border-[#E9EDC9] hover:bg-[#F2EDD0] text-xs font-bold rounded-xl text-[#4A4941] transition-colors cursor-pointer"
                 >
                   Replay
                 </button>
@@ -463,7 +498,7 @@ export const GameView: React.FC<GameViewProps> = ({
                     audio.playClick();
                     onOpenLevelSelect();
                   }}
-                  className="py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl text-slate-200 transition-colors"
+                  className="py-2.5 bg-[#FEFAE0] border border-[#E9EDC9] hover:bg-[#F2EDD0] text-xs font-bold rounded-xl text-[#4A4941] transition-colors cursor-pointer"
                 >
                   Level Select
                 </button>
@@ -475,3 +510,4 @@ export const GameView: React.FC<GameViewProps> = ({
     </div>
   );
 };
+

@@ -26,14 +26,24 @@ function hashSeed(seedStr: string): number {
   return h >>> 0;
 }
 
+// Fisher-Yates deterministic shuffle
+function shuffleArray<T>(arr: T[], rng: () => number): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 export function generateLevelConfig(
   levelNumber: number,
   customSeed?: string
 ): LevelConfig {
-  const seedString = customSeed || `level_${levelNumber}_v1`;
+  const seedString = customSeed || `endless_level_${levelNumber}_v2`;
   let attempt = 0;
 
-  while (attempt < 50) {
+  while (attempt < 40) {
     const seed = hashSeed(`${seedString}_att_${attempt}`);
     const rng = mulberry32(seed);
 
@@ -44,7 +54,7 @@ export function generateLevelConfig(
     attempt++;
   }
 
-  // Fallback safe level if attempt limit reached
+  // Fallback dynamic level generator if attempt limit reached
   return buildFallbackLevel(levelNumber, seedString);
 }
 
@@ -56,35 +66,33 @@ function tryGenerateLevel(
 ): LevelConfig | null {
   const isChallenge = levelNumber > 5 && levelNumber % 10 === 0;
 
-  // Determine fruit types count based on difficulty progression
+  // Endless Level Difficulty Scaling
   let numFruitTypes = 2;
   let basketCapacity = 4;
   let emptyBasketsCount = 2;
 
-  if (levelNumber <= 2) {
+  if (levelNumber === 1) {
     numFruitTypes = 2;
-    emptyBasketsCount = levelNumber === 1 ? 1 : 2;
-  } else if (levelNumber <= 10) {
+    emptyBasketsCount = 2;
+  } else if (levelNumber <= 5) {
     numFruitTypes = 3;
     emptyBasketsCount = 2;
+  } else if (levelNumber <= 15) {
+    numFruitTypes = 3 + Math.floor(rng() * 2); // 3-4
+    emptyBasketsCount = 2;
   } else if (levelNumber <= 30) {
-    numFruitTypes = 3 + Math.floor(rng() * 2); // 3 or 4
+    numFruitTypes = 4 + Math.floor(rng() * 2); // 4-5
     emptyBasketsCount = 2;
-  } else if (levelNumber <= 75) {
-    numFruitTypes = 4 + Math.floor(rng() * 2); // 4 or 5
+  } else if (levelNumber <= 60) {
+    numFruitTypes = 5 + Math.floor(rng() * 2); // 5-6
     emptyBasketsCount = 2;
-  } else if (levelNumber <= 150) {
-    numFruitTypes = 5 + Math.floor(rng() * 3); // 5 to 7
-    basketCapacity = rng() > 0.6 ? 5 : 4;
-    emptyBasketsCount = 2;
-  } else if (levelNumber <= 300) {
-    numFruitTypes = 6 + Math.floor(rng() * 3); // 6 to 8
-    basketCapacity = rng() > 0.5 ? 5 : 4;
-    emptyBasketsCount = rng() > 0.7 ? 3 : 2;
+  } else if (levelNumber <= 120) {
+    numFruitTypes = 6 + Math.floor(rng() * 3); // 6-8
+    emptyBasketsCount = rng() > 0.8 ? 3 : 2;
   } else {
-    numFruitTypes = 7 + Math.floor(rng() * 3); // 7 to 9
-    basketCapacity = rng() > 0.5 ? 5 : 4;
-    emptyBasketsCount = 2;
+    // Endless mode beyond 120: cycle through 6..9 fruit types
+    numFruitTypes = 6 + Math.min(ALL_FRUIT_TYPES.length - 6, (levelNumber % 6));
+    emptyBasketsCount = (levelNumber % 7 === 0) ? 3 : 2;
   }
 
   if (isChallenge) {
@@ -92,9 +100,8 @@ function tryGenerateLevel(
     emptyBasketsCount = 1; // Tougher: only 1 empty basket!
   }
 
-  // Pick fruit types for this level
-  const shuffledFruits = [...ALL_FRUIT_TYPES].sort(() => rng() - 0.5);
-  const chosenFruitTypes = shuffledFruits.slice(0, numFruitTypes);
+  // Pick fruit types deterministically for this level using Fisher-Yates
+  const chosenFruitTypes = shuffleArray(ALL_FRUIT_TYPES, rng).slice(0, numFruitTypes);
 
   // Generate solved state first (Reverse move shuffling guarantees solvability)
   const baskets: Basket[] = [];
@@ -128,16 +135,16 @@ function tryGenerateLevel(
 
   // Special mechanics for level 25+
   const specialMechanics: ('locked' | 'frozen' | 'wild')[] = [];
-  if (levelNumber >= 25 && rng() > 0.6) {
+  if (levelNumber >= 25 && rng() > 0.7) {
     specialMechanics.push('locked');
-  } else if (levelNumber >= 40 && rng() > 0.6) {
+  } else if (levelNumber >= 40 && rng() > 0.7) {
     specialMechanics.push('frozen');
   }
 
-  // Apply Reverse Moves to thoroughly shuffle the solved board
+  // Apply Reverse Moves to shuffle the solved board
   const shuffleMovesCount = Math.min(
-    120,
-    15 + levelNumber * 2 + Math.floor(rng() * 20)
+    100,
+    12 + Math.min(60, levelNumber * 2) + Math.floor(rng() * 15)
   );
 
   let currentBaskets = baskets.map((b) => ({
@@ -153,7 +160,6 @@ function tryGenerateLevel(
       if (currentBaskets[f].items.length === 0) continue;
       for (let t = 0; t < n; t++) {
         if (f === t) continue;
-        // In reverse shuffling, we can move a fruit to another basket if it has space
         if (currentBaskets[t].items.length < currentBaskets[t].capacity) {
           validMoves.push({ from: f, to: t });
         }
@@ -181,25 +187,20 @@ function tryGenerateLevel(
   }
 
   if (specialMechanics.includes('frozen')) {
-    // Freeze one fruit in a basket
     const candidateBaskets = currentBaskets.filter((b) => b.items.length > 2);
     if (candidateBaskets.length > 0) {
       const targetB = candidateBaskets[Math.floor(rng() * candidateBaskets.length)];
-      targetB.items[0].isFrozen = true; // Bottom fruit frozen
+      if (targetB.items.length > 0) {
+        targetB.items[0].isFrozen = true;
+      }
     }
   }
 
   // Validate with Solver
-  const solverRes = solvePuzzle(currentBaskets, 3500);
+  const solverRes = solvePuzzle(currentBaskets, 2500);
 
   if (!solverRes.isSolvable) {
     return null; // Reject unsolvable puzzle!
-  }
-
-  // Ensure minimum move depth appropriate for level
-  const minRequiredMoves = Math.min(18, Math.max(3, Math.floor(levelNumber / 8)));
-  if (solverRes.minMoves < minRequiredMoves && levelNumber > 5 && attempt < 25) {
-    return null; // Reject if too trivial for higher level
   }
 
   const challengeTitle = isChallenge
@@ -222,61 +223,41 @@ function tryGenerateLevel(
 }
 
 function buildFallbackLevel(levelNumber: number, seedString: string): LevelConfig {
-  const fruitTypes: FruitType[] = (['apple', 'banana', 'orange'] as FruitType[]).slice(
-    0,
-    levelNumber === 1 ? 2 : 3
-  );
-  const basketsCount = fruitTypes.length + 2;
+  const seed = hashSeed(`${seedString}_fallback`);
+  const rng = mulberry32(seed);
+
+  const numFruits = Math.min(ALL_FRUIT_TYPES.length, 2 + (levelNumber % 4));
+  const chosenFruitTypes = shuffleArray(ALL_FRUIT_TYPES, rng).slice(0, numFruits);
   const capacity = 4;
 
-  const baskets: Basket[] = [];
+  // Build a solvable mixed layout dynamically based on seed
+  const itemsPool: FruitItem[] = [];
   let itemCounter = 1;
-
-  // Basket 0: mixed
-  baskets.push({
-    id: 'b_0',
-    capacity,
-    items: [
-      { id: `i_${itemCounter++}`, type: fruitTypes[0] },
-      { id: `i_${itemCounter++}`, type: fruitTypes[1] },
-      { id: `i_${itemCounter++}`, type: fruitTypes[0] },
-      { id: `i_${itemCounter++}`, type: fruitTypes[1] },
-    ],
+  chosenFruitTypes.forEach((fType) => {
+    for (let c = 0; c < capacity; c++) {
+      itemsPool.push({ id: `fb_${levelNumber}_${itemCounter++}`, type: fType });
+    }
   });
 
-  // Basket 1: mixed
-  baskets.push({
-    id: 'b_1',
-    capacity,
-    items: [
-      { id: `i_${itemCounter++}`, type: fruitTypes[1] },
-      { id: `i_${itemCounter++}`, type: fruitTypes[0] },
-      { id: `i_${itemCounter++}`, type: fruitTypes[1] },
-      { id: `i_${itemCounter++}`, type: fruitTypes[0] },
-    ],
-  });
+  const shuffledItems = shuffleArray(itemsPool, rng);
 
-  if (fruitTypes.length > 2) {
+  const baskets: Basket[] = [];
+  for (let b = 0; b < numFruits; b++) {
     baskets.push({
-      id: 'b_2',
+      id: `b_fb_${b}`,
       capacity,
-      items: [
-        { id: `i_${itemCounter++}`, type: fruitTypes[2] },
-        { id: `i_${itemCounter++}`, type: fruitTypes[2] },
-        { id: `i_${itemCounter++}`, type: fruitTypes[2] },
-        { id: `i_${itemCounter++}`, type: fruitTypes[2] },
-      ],
+      items: shuffledItems.slice(b * capacity, (b + 1) * capacity),
     });
   }
 
   // 2 empty baskets
-  baskets.push({ id: 'b_emp_1', capacity, items: [] });
-  baskets.push({ id: 'b_emp_2', capacity, items: [] });
+  baskets.push({ id: `b_fb_emp_0`, capacity, items: [] });
+  baskets.push({ id: `b_fb_emp_1`, capacity, items: [] });
 
   return {
     levelNumber,
     seed: seedString,
-    fruitTypes,
+    fruitTypes: chosenFruitTypes,
     basketsCount: baskets.length,
     emptyBasketsCount: 2,
     basketCapacity: capacity,

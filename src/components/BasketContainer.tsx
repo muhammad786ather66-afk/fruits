@@ -21,6 +21,7 @@ interface BasketContainerProps {
   basketBorderClass?: string;
   basketBgClass?: string;
   woodAccentClass?: string;
+  rimBgClass?: string;
 }
 
 export const BasketContainer: React.FC<BasketContainerProps> = ({
@@ -31,9 +32,10 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
   isHintSource,
   isHintTarget,
   onSelect,
-  basketBorderClass = 'border-amber-700/80',
-  basketBgClass = 'bg-amber-950/40',
-  woodAccentClass = 'bg-amber-800/90 text-amber-100',
+  basketBorderClass = 'border-[#86A789]',
+  basketBgClass = 'bg-[#86A789]/15',
+  woodAccentClass = 'bg-[#E9EDC9] text-[#5F6F52]',
+  rimBgClass = 'bg-[#86A789]',
 }) => {
   const { capacity, items, isLocked, unlockKeyType } = basket;
 
@@ -57,33 +59,33 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
     >
       {/* Target/Source Hint Animated Indicator */}
       {(isHintSource || isHintTarget) && (
-        <div className="absolute -top-7 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 shadow-lg animate-bounce z-30">
+        <div className="absolute -top-7 text-xs font-bold px-2 py-0.5 rounded-full bg-[#5F6F52] text-white shadow-md animate-bounce z-30">
           {isHintSource ? 'FROM' : 'TO'}
         </div>
       )}
 
-      {/* Basket Rim / Top Ring */}
+      {/* Basket/Bottle Top Cork & Rim */}
       <div
         className={`w-16 sm:w-20 h-4 rounded-t-lg border-t-2 border-x-2 ${basketBorderClass} ${
           isSelected
-            ? 'bg-amber-400 border-amber-300 ring-2 ring-amber-300/80'
+            ? 'bg-[#5F6F52] border-[#3A4730] ring-2 ring-[#5F6F52]/80'
             : isValidDestination
-            ? 'bg-emerald-500 border-emerald-400 ring-2 ring-emerald-400/80 animate-pulse'
+            ? 'bg-[#86A789] border-[#5F6F52] ring-2 ring-[#86A789]/80 animate-pulse'
             : isCompleted
-            ? 'bg-emerald-400 border-emerald-300'
-            : 'bg-amber-800/60'
-        } transition-all duration-200 z-10 shadow-sm`}
+            ? 'bg-[#5F6F52] border-[#3A4730]'
+            : rimBgClass
+        } transition-all duration-200 z-10 shadow-xs`}
       />
 
-      {/* Main Basket Body / Stack Tube */}
+      {/* Main Bottle Body / Stack Tube */}
       <div
         className={`relative w-16 sm:w-20 ${containerHeightClass} rounded-b-xl border-b-2 border-x-2 ${basketBorderClass} ${basketBgClass} backdrop-blur-xs flex flex-col-reverse items-center justify-start p-1 gap-1.5 shadow-inner transition-all duration-200 overflow-hidden ${
           isSelected
-            ? 'ring-4 ring-amber-400/80 shadow-[0_0_20px_rgba(251,191,36,0.3)]'
+            ? 'ring-4 ring-[#5F6F52]/70 shadow-[0_0_15px_rgba(95,111,82,0.3)]'
             : isValidDestination
-            ? 'ring-4 ring-emerald-400/80 shadow-[0_0_20px_rgba(52,211,153,0.3)]'
+            ? 'ring-4 ring-[#86A789]/80 shadow-[0_0_15px_rgba(134,167,137,0.4)]'
             : isCompleted
-            ? 'ring-2 ring-emerald-400/60 bg-emerald-950/20'
+            ? 'ring-2 ring-[#5F6F52]/60'
             : ''
         }`}
       >
