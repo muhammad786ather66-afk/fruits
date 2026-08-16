@@ -191,7 +191,6 @@ export const GameView: React.FC<GameViewProps> = ({
   // Handle basket selection and fruit movement
   const handleSelectBasket = (targetIdx: number) => {
     audio.ensureMusicPlaying();
-    ensureFullscreenOnPlay();
     if (isWon || showRestartToast) return;
     setHintMove(null);
 
@@ -358,7 +357,6 @@ export const GameView: React.FC<GameViewProps> = ({
   // Undo previous move
   const handleUndo = () => {
     audio.ensureMusicPlaying();
-    ensureFullscreenOnPlay();
     if (moveHistory.length === 0 || isWon || showRestartToast) return;
     audio.playUndo();
 
@@ -391,7 +389,6 @@ export const GameView: React.FC<GameViewProps> = ({
   // Run Solver for Hint
   const handleHint = () => {
     audio.ensureMusicPlaying();
-    ensureFullscreenOnPlay();
     if (isWon || showRestartToast) return;
     audio.playHint();
     setHintsUsed((prev) => prev + 1);
@@ -409,7 +406,6 @@ export const GameView: React.FC<GameViewProps> = ({
   // Add Extra Bottle feature with strict level-based complexity rules
   const handleAddBottle = () => {
     audio.ensureMusicPlaying();
-    ensureFullscreenOnPlay();
     if (isWon || showRestartToast) return;
 
     if (levelConfig.levelNumber <= 5) {
@@ -445,8 +441,7 @@ export const GameView: React.FC<GameViewProps> = ({
 
   return (
     <div
-      onClick={handleBackgroundClick}
-      className="w-full flex-1 flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-[#0B132B] via-[#1C2541] to-[#0B132B] text-white min-h-[calc(100vh-52px)] relative overflow-hidden select-none cursor-pointer"
+      className="w-full flex-1 flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-[#0B132B] via-[#1C2541] to-[#0B132B] text-white min-h-[calc(100vh-52px)] relative overflow-hidden select-none"
     >
       {/* Background Palm Trees / Tropical Sunset Backdrop matching user photo */}
       <div className="absolute inset-x-0 bottom-0 h-36 opacity-20 pointer-events-none flex items-end justify-between px-4">
