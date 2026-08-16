@@ -76,9 +76,10 @@ export default function App() {
     loadProfiles();
   }, [loadProfiles]);
 
-  // Generate / Load Level Config whenever activeProfile or currentLevelNumber changes
+  // Generate / Load Level Config whenever activeProfile ID or currentLevelNumber changes
+  const activeProfileId = activeProfile?.id;
   useEffect(() => {
-    if (!activeProfile) return;
+    if (!activeProfileId) return;
 
     if (isDailyActive) {
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -88,7 +89,7 @@ export default function App() {
       const levelConf = generateLevelConfig(currentLevelNumber);
       setLevelConfig(levelConf);
     }
-  }, [activeProfile, currentLevelNumber, isDailyActive]);
+  }, [activeProfileId, currentLevelNumber, isDailyActive]);
 
   // Update Audio Engine Settings
   useEffect(() => {

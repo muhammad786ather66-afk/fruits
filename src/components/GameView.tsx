@@ -75,11 +75,10 @@ export const GameView: React.FC<GameViewProps> = ({
       return;
     }
 
-    setAutoAdvanceTimer(2);
+    setAutoAdvanceTimer(3);
     const interval = setInterval(() => {
       setAutoAdvanceTimer((prev) => {
-        if (prev === null) return null;
-        if (prev <= 1) {
+        if (prev === null || prev <= 1) {
           clearInterval(interval);
           onNextLevel();
           return 0;
@@ -133,10 +132,11 @@ export const GameView: React.FC<GameViewProps> = ({
         movedItem,
       };
 
+      const newMovesCount = movesCount + 1;
       setMoveHistory((prev) => [...prev, record]);
       setBaskets(nextBaskets);
       setSelectedBasketIdx(null);
-      setMovesCount((prev) => prev + 1);
+      setMovesCount(newMovesCount);
       audio.playPlace();
 
       // Check if destination basket completed
@@ -150,7 +150,7 @@ export const GameView: React.FC<GameViewProps> = ({
 
       // Check for Puzzle Solve Win
       if (isBoardSolved(nextBaskets)) {
-        handleWin(movesCount + 1, hintsUsed, nextBaskets);
+        handleWin(newMovesCount, hintsUsed, nextBaskets);
       }
     } else {
       audio.playInvalid();
