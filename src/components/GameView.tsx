@@ -26,6 +26,7 @@ import { audio } from '../lib/audio';
 import { executeMove, isBoardSolved, isMoveLegal, solvePuzzle } from '../lib/solver';
 import { THEMES } from '../lib/themes';
 import { getBottleThemeForLevel } from '../lib/bottleThemes';
+import { RewardedAdModal, AdRewardType } from './RewardedAdModal';
 
 interface GameViewProps {
   levelConfig: LevelConfig;
@@ -67,9 +68,16 @@ export const GameView: React.FC<GameViewProps> = ({
   const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<number | null>(null);
   const [isAutoPaused, setIsAutoPaused] = useState(false);
 
-  // Interstitial Ad Modal state
-  const [showAdModal, setShowAdModal] = useState(false);
-  const [adTimer, setAdTimer] = useState(3);
+  // Hints & Rewarded Ads State
+  const [freeHintsRemaining, setFreeHintsRemaining] = useState<number>(
+    levelConfig.isChallenge ? 0 : 1
+  );
+  const [activeAd, setActiveAd] = useState<{
+    rewardType: AdRewardType;
+    rewardTitle: string;
+    rewardDescription: string;
+    requiredSeconds: number;
+  } | null>(null);
 
   const AD_URL = "https://www.effectivecpmnetwork.com/injygstv?key=58b512b8278fdb4d1fb08d6d0bad6c5e";
 
@@ -82,6 +90,7 @@ export const GameView: React.FC<GameViewProps> = ({
     setMoveHistory([]);
     setMovesCount(0);
     setHintsUsed(0);
+    setFreeHintsRemaining(levelConfig.isChallenge ? 0 : 1);
     setHintMove(null);
     setExtraBottlesAdded(0);
     setWrongMovesCount(0);
@@ -90,8 +99,7 @@ export const GameView: React.FC<GameViewProps> = ({
     setWinStats(null);
     setAutoAdvanceTimer(null);
     setIsAutoPaused(false);
-    setShowAdModal(false);
-    setAdTimer(3);
+    setActiveAd(null);
 
     // Announce level start with Voice
     if (isGrandLevel) {
@@ -101,9 +109,9 @@ export const GameView: React.FC<GameViewProps> = ({
     }
   }, [levelConfig]);
 
-  // Handle automatic progression to next level on win -> shows Interstitial Ad modal first
+  // Handle automatic progression to next level on win -> shows Full Screen Rewarded Ad modal
   useEffect(() => {
-    if (!isWon || isAutoPaused || showAdModal) {
+    if (!isWon || isAutoPaused || activeAd !== null) {
       return;
     }
 
@@ -120,41 +128,52 @@ export const GameView: React.FC<GameViewProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isWon, isAutoPaused, showAdModal]);
+  }, [isWon, isAutoPaused, activeAd]);
 
-  // Trigger Interstitial Ad before Next Level
+  // Trigger Full Screen Rewarded Ad before Next Level
   const handleProceedToAd = () => {
     setIsAutoPaused(true);
-    setShowAdModal(true);
-    setAdTimer(5); // 5 seconds required watch duration
-
-    const timer = setInterval(() => {
-      setAdTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Auto move to next level after ad watching finishes!
-          setTimeout(() => {
-            setShowAdModal(false);
-            onNextLevel();
-          }, 600);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    setActiveAd({
+      rewardType: 'next_level',
+      rewardTitle: `LEVEL ${levelConfig.levelNumber + 1} UNLOCK`,
+      rewardDescription: `Sponsored ad broadcast before advancing to Level ${levelConfig.levelNumber + 1}`,
+      requiredSeconds: 12,
+    });
   };
 
-  const handleCompleteAdAndNextLevel = () => {
-    setShowAdModal(false);
-    onNextLevel();
-  };
+  // Claim handler when a full 10-15s ad completes watching
+  const handleClaimAdReward = () => {
+    if (!activeAd) return;
+    const type = activeAd.rewardType;
+    setActiveAd(null);
 
-  const handleVisitAdLink = () => {
-    window.open(AD_URL, '_blank', 'noopener,noreferrer');
-    // Automatically complete ad and move to next level upon clicking ad
-    setTimeout(() => {
-      handleCompleteAdAndNextLevel();
-    }, 400);
+    if (type === 'hint') {
+      audio.playHint();
+      setHintsUsed((prev) => prev + 1);
+      const solverResult = solvePuzzle(baskets, 3000);
+      if (solverResult.nextBestMove) {
+        setHintMove({
+          from: solverResult.nextBestMove.fromIndex,
+          to: solverResult.nextBestMove.toIndex,
+        });
+        audio.speakVoice("Ad completed! Optimal hint move revealed.");
+      }
+    } else if (type === 'bottle') {
+      audio.playClick();
+      setExtraBottlesAdded((prev) => prev + 1);
+      setBaskets((prev) => [
+        ...prev,
+        {
+          id: `basket_extra_${Date.now()}`,
+          capacity: levelConfig.basketCapacity,
+          items: [],
+        },
+      ]);
+      audio.speakVoice("Ad completed! Extra tube added to puzzle.");
+    } else if (type === 'next_level') {
+      audio.playClick();
+      onNextLevel();
+    }
   };
 
   // Ensure full screen when playing
@@ -386,31 +405,43 @@ export const GameView: React.FC<GameViewProps> = ({
     setHintMove(null);
   };
 
-  // Run Solver for Hint
+  // Run Solver for Hint - Restricts hints to make game challenging & requires watching full-screen ad
   const handleHint = () => {
     audio.ensureMusicPlaying();
     if (isWon || showRestartToast) return;
-    audio.playHint();
-    setHintsUsed((prev) => prev + 1);
 
-    const solverResult = solvePuzzle(baskets, 3000);
-    if (solverResult.nextBestMove) {
-      setHintMove({
-        from: solverResult.nextBestMove.fromIndex,
-        to: solverResult.nextBestMove.toIndex,
+    if (freeHintsRemaining > 0) {
+      audio.playHint();
+      setHintsUsed((prev) => prev + 1);
+      setFreeHintsRemaining((prev) => prev - 1);
+
+      const solverResult = solvePuzzle(baskets, 3000);
+      if (solverResult.nextBestMove) {
+        setHintMove({
+          from: solverResult.nextBestMove.fromIndex,
+          to: solverResult.nextBestMove.toIndex,
+        });
+        audio.speakVoice("Free hint used! 0 free hints remaining.");
+      }
+    } else {
+      audio.playClick();
+      setActiveAd({
+        rewardType: 'hint',
+        rewardTitle: '+1 EXTRA HINT',
+        rewardDescription: 'Watch full 15s sponsored ad to reveal optimal move!',
+        requiredSeconds: 15,
       });
-      audio.speakVoice("Hint provided!");
     }
   };
 
-  // Add Extra Bottle feature with strict level-based complexity rules
+  // Add Extra Bottle feature - requires watching full-screen ad
   const handleAddBottle = () => {
     audio.ensureMusicPlaying();
     if (isWon || showRestartToast) return;
 
     if (levelConfig.levelNumber <= 5) {
       audio.playInvalid();
-      audio.speakVoice("No extra bottles in beginning levels! Unlocks at Level 6.");
+      audio.speakVoice("No extra bottles in Level 1 to 5! Unlocks at Level 6.");
       return;
     }
 
@@ -427,16 +458,12 @@ export const GameView: React.FC<GameViewProps> = ({
     }
 
     audio.playClick();
-    setExtraBottlesAdded((prev) => prev + 1);
-    setBaskets((prev) => [
-      ...prev,
-      {
-        id: `basket_extra_${Date.now()}`,
-        capacity: levelConfig.basketCapacity,
-        items: [],
-      },
-    ]);
-    audio.speakVoice("Extra bottle added!");
+    setActiveAd({
+      rewardType: 'bottle',
+      rewardTitle: '+1 EXTRA TUBE',
+      rewardDescription: 'Watch full 15s sponsored ad to add an extra empty tube!',
+      requiredSeconds: 15,
+    });
   };
 
   return (
@@ -594,7 +621,7 @@ export const GameView: React.FC<GameViewProps> = ({
           <span className="text-[10px] font-black text-purple-200 mt-1 uppercase tracking-wider">RESET</span>
         </button>
 
-        {/* Add Extra Bottle Button */}
+        {/* Add Extra Bottle Button - requires watching full-screen ad */}
         <button
           onClick={handleAddBottle}
           disabled={isWon || showRestartToast}
@@ -617,21 +644,28 @@ export const GameView: React.FC<GameViewProps> = ({
           </div>
           <span
             className={`absolute -bottom-1 -right-1 ${
-              maxAllowedExtra === 0
+              levelConfig.levelNumber <= 5 || extraBottlesAdded >= maxAllowedExtra
                 ? 'bg-rose-600 text-white'
-                : extraBottlesAdded >= maxAllowedExtra
-                ? 'bg-amber-600 text-white'
-                : 'bg-emerald-500 text-slate-950'
-            } text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-slate-900 shadow-md`}
+                : 'bg-amber-400 text-amber-950'
+            } text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-slate-900 shadow-md flex items-center gap-0.5`}
           >
-            {levelConfig.levelNumber <= 5 ? 'Lvl 6+' : `${extraBottlesAdded}/${maxAllowedExtra}`}
+            {levelConfig.levelNumber <= 5 ? (
+              'Lvl 6+'
+            ) : extraBottlesAdded >= maxAllowedExtra ? (
+              'MAX'
+            ) : (
+              <>
+                <Zap className="w-2.5 h-2.5 fill-current text-amber-950" />
+                <span>AD +1</span>
+              </>
+            )}
           </span>
           <span className="text-[10px] font-black text-fuchsia-200 mt-1 uppercase tracking-wider">
             +TUBE
           </span>
         </button>
 
-        {/* Hint Button */}
+        {/* Hint Button - Restricted hints, watch ad for extra hints */}
         <button
           onClick={handleHint}
           disabled={isWon || showRestartToast}
@@ -642,8 +676,19 @@ export const GameView: React.FC<GameViewProps> = ({
               <Lightbulb className="w-6 h-6 sm:w-7 sm:h-7 text-amber-300" />
             </div>
           </div>
-          <span className="absolute -bottom-1 -right-1 bg-amber-400 text-amber-950 text-xs font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-md">
-            {hintsUsed}
+          <span
+            className={`absolute -bottom-1 -right-1 ${
+              freeHintsRemaining > 0 ? 'bg-emerald-500 text-slate-950' : 'bg-amber-400 text-amber-950'
+            } text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-slate-900 shadow-md flex items-center gap-0.5`}
+          >
+            {freeHintsRemaining > 0 ? (
+              `FREE ${freeHintsRemaining}`
+            ) : (
+              <>
+                <Zap className="w-2.5 h-2.5 fill-current text-amber-950" />
+                <span>AD +1</span>
+              </>
+            )}
           </span>
           <span className="text-[10px] font-black text-amber-200 mt-1 uppercase tracking-wider">HINT</span>
         </button>
@@ -745,77 +790,17 @@ export const GameView: React.FC<GameViewProps> = ({
         </div>
       )}
 
-      {/* Interstitial Ad Popup Modal (Triggers on same screen between levels) */}
-      {showAdModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-lg flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
-          <div className="bg-gradient-to-b from-[#1E1B4B] via-[#0F172A] to-[#0B132B] border-2 border-amber-400/80 rounded-3xl w-full max-w-lg p-4 sm:p-6 text-white shadow-[0_0_50px_rgba(245,158,11,0.4)] text-center relative overflow-hidden flex flex-col items-center">
-            {/* Level Completion Header */}
-            {winStats && (
-              <div className="w-full bg-slate-900/90 border border-amber-400/40 rounded-2xl p-2.5 mb-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5 font-black text-amber-300">
-                  <Trophy className="w-4 h-4 text-amber-400" />
-                  <span>LEVEL {levelConfig.levelNumber} COMPLETE!</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3].map((s) => (
-                    <Star
-                      key={s}
-                      className={`w-3.5 h-3.5 ${
-                        s <= winStats.stars ? 'fill-amber-400 text-amber-400' : 'text-slate-700'
-                      }`}
-                    />
-                  ))}
-                  <span className="font-bold text-emerald-400 ml-1">+{winStats.earnedScore} pts</span>
-                </div>
-              </div>
-            )}
-
-            {/* Top Sponsor Pill */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-3">
-              <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>SPONSORED ADVERTISEMENT</span>
-            </div>
-
-            {/* Embedded Ad Frame / Interactive Offer on same screen */}
-            <div className="w-full bg-slate-900/95 border border-slate-700 rounded-2xl p-3 my-1 flex flex-col items-center gap-3 shadow-inner relative overflow-hidden">
-              <div className="w-full h-44 sm:h-52 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative">
-                <iframe
-                  src={AD_URL}
-                  title="Sponsored Ad"
-                  className="w-full h-full border-0 rounded-xl"
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                />
-              </div>
-
-              <div className="w-full flex flex-col items-center gap-2">
-                <button
-                  onClick={handleVisitAdLink}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-500 hover:from-amber-300 hover:to-rose-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-[0_0_20px_rgba(251,191,36,0.5)] flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border border-amber-200 hover:scale-102"
-                >
-                  <span>🔥 OPEN SPONSOR OFFER & NEXT LEVEL 🔥</span>
-                  <ExternalLink className="w-4 h-4 text-slate-950 stroke-[3]" />
-                </button>
-              </div>
-            </div>
-
-            {/* Watch Progress & Automatic Next Level Indicator */}
-            <div className="w-full mt-3">
-              <div className="w-full py-3 px-4 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider bg-slate-900/80 border border-amber-400/30 text-amber-300 flex items-center justify-center gap-2">
-                {adTimer > 0 ? (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                    <span>WATCHING AD... AUTOMATIC NEXT LEVEL IN {adTimer}s</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span className="text-emerald-400">AD COMPLETE! MOVING TO NEXT LEVEL...</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Full-Screen Rewarded Ad Modal */}
+      {activeAd && (
+        <RewardedAdModal
+          rewardType={activeAd.rewardType}
+          rewardTitle={activeAd.rewardTitle}
+          rewardDescription={activeAd.rewardDescription}
+          requiredSeconds={activeAd.requiredSeconds}
+          adUrl={AD_URL}
+          onClaimReward={handleClaimAdReward}
+          onCancel={() => setActiveAd(null)}
+        />
       )}
     </div>
   );
