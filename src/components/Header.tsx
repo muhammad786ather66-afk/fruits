@@ -45,8 +45,9 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="w-full bg-[#0B132B]/95 border-b border-indigo-900/80 px-2 sm:px-4 py-1.5 sm:py-2 sticky top-0 z-40 flex items-center justify-between gap-1 sm:gap-3 text-white shadow-xl backdrop-blur-md overflow-x-auto no-scrollbar">
       {/* Brand Title */}
       <div
-        onClick={() => onNavigate('game')}
+        onClick={() => onNavigate('splash')}
         className="flex items-center gap-1.5 sm:gap-2 cursor-pointer group shrink-0"
+        title="View Game Splash Screen"
       >
         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-rose-500 via-amber-400 to-purple-600 text-white flex items-center justify-center font-bold text-sm sm:text-base shadow-[0_0_12px_rgba(244,63,94,0.6)] group-hover:scale-105 transition-transform border border-rose-300/40">
           🍓

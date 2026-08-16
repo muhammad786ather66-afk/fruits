@@ -27,7 +27,8 @@ export type AdRewardType =
   | 'bottle'
   | 'next_level'
   | 'two_ads_basket_1'
-  | 'two_ads_basket_2';
+  | 'two_ads_basket_2'
+  | 'time_extension';
 
 interface RewardedAdModalProps {
   rewardType: AdRewardType;

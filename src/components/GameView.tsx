@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   FlaskConical,
   ExternalLink,
+  Timer,
 } from 'lucide-react';
 import { Basket, LevelConfig, MoveRecord, PlayerProfile } from '../types';
 import { BasketContainer } from './BasketContainer';
@@ -56,6 +57,10 @@ export const GameView: React.FC<GameViewProps> = ({
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintMove, setHintMove] = useState<{ from: number; to: number } | null>(null);
   const [extraBottlesAdded, setExtraBottlesAdded] = useState(0);
+
+  // Level Countdown Timer state (e.g. for Levels 41-60 and timed levels)
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [isTimeUp, setIsTimeUp] = useState<boolean>(false);
 
   // 3 Wrong Moves tracking
   const [wrongMovesCount, setWrongMovesCount] = useState<number>(0);
@@ -103,6 +108,15 @@ export const GameView: React.FC<GameViewProps> = ({
     setIsAutoPaused(false);
     setActiveAd(null);
 
+    // Initialize countdown timer if levelConfig has time limit
+    if (levelConfig.timeLimitSeconds) {
+      setTimeLeft(levelConfig.timeLimitSeconds);
+      setIsTimeUp(false);
+    } else {
+      setTimeLeft(null);
+      setIsTimeUp(false);
+    }
+
     // Announce level start with Voice
     if (isGrandLevel) {
       audio.speakVoice(`Level ${levelConfig.levelNumber}. Super Hard Grand Level!`);
@@ -110,6 +124,36 @@ export const GameView: React.FC<GameViewProps> = ({
       audio.speakVoice(`Level ${levelConfig.levelNumber}`);
     }
   }, [levelConfig]);
+
+  // Level Countdown Timer interval loop
+  useEffect(() => {
+    if (
+      timeLeft === null ||
+      timeLeft <= 0 ||
+      isWon ||
+      isTimeUp ||
+      activeAd !== null ||
+      showRestartToast
+    ) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsTimeUp(true);
+          audio.playInvalid();
+          audio.speakVoice("Time's up!");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft, isWon, isTimeUp, activeAd, showRestartToast]);
 
   // Handle automatic progression to next level on win -> shows Full Screen Rewarded Ad modal
   useEffect(() => {
@@ -211,6 +255,11 @@ export const GameView: React.FC<GameViewProps> = ({
     } else if (type === 'next_level') {
       audio.playClick();
       onNextLevel();
+    } else if (type === 'time_extension') {
+      audio.playBasketComplete();
+      setTimeLeft((prev) => (prev || 0) + 30);
+      setIsTimeUp(false);
+      audio.speakVoice("30 seconds added to level timer!");
     }
   };
 
@@ -592,13 +641,48 @@ export const GameView: React.FC<GameViewProps> = ({
         </button>
       </div>
 
-      {/* Middle Status Info: Target Moves & Wrong Moves Tracker */}
-      <div className="w-full max-w-xl flex items-center justify-between text-xs font-bold text-slate-300 px-3 my-1.5 z-20">
+      {/* Middle Status Info: Target Moves & Timer & Wrong Moves Tracker */}
+      <div className="w-full max-w-xl flex items-center justify-between text-xs font-bold text-slate-300 px-3 my-1.5 z-20 gap-2">
         <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-700/80 px-3 py-1 rounded-full backdrop-blur-md">
           <span className="text-slate-400 uppercase text-[10px]">MOVES:</span>
           <span className="text-amber-400 font-black text-sm">{movesCount}</span>
           <span className="text-slate-500 text-[10px]">/ {levelConfig.maxMovesTarget}</span>
         </div>
+
+        {/* Level Countdown Timer Display */}
+        {timeLeft !== null && (
+          <div className="flex-1 max-w-xs flex items-center gap-2 bg-slate-900/80 border border-amber-400/50 px-3 py-1 rounded-full backdrop-blur-md shadow-md">
+            <Timer
+              className={`w-4 h-4 text-amber-400 ${
+                timeLeft <= 10 ? 'animate-bounce text-rose-400' : ''
+              }`}
+            />
+            <span
+              className={`text-xs font-black font-mono ${
+                timeLeft <= 10 ? 'text-rose-400 animate-pulse' : 'text-amber-300'
+              }`}
+            >
+              {timeLeft}s
+            </span>
+            <div className="flex-1 h-2 bg-slate-950 rounded-full border border-slate-800 overflow-hidden relative">
+              <div
+                className={`h-full transition-all duration-1000 rounded-full ${
+                  timeLeft / (levelConfig.timeLimitSeconds || 60) > 0.5
+                    ? 'bg-gradient-to-r from-emerald-400 to-teal-400'
+                    : timeLeft / (levelConfig.timeLimitSeconds || 60) > 0.2
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-500'
+                    : 'bg-gradient-to-r from-rose-500 to-red-600 animate-pulse'
+                }`}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.max(0, (timeLeft / (levelConfig.timeLimitSeconds || 60)) * 100)
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Wrong Moves Warning Indicators */}
         <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-700/80 px-3 py-1 rounded-full backdrop-blur-md">
@@ -868,6 +952,59 @@ export const GameView: React.FC<GameViewProps> = ({
                   Level Select
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Time's Up Modal */}
+      {isTimeUp && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1C2541] border-2 border-rose-500/60 rounded-3xl w-full max-w-sm p-6 text-white shadow-2xl text-center relative overflow-hidden animate-fadeIn">
+            <div className="inline-flex p-3 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-400/30 mb-3">
+              <Timer className="w-10 h-10 animate-pulse" />
+            </div>
+
+            <h2 className="text-2xl font-black tracking-tight text-white uppercase">
+              TIME'S UP!
+            </h2>
+            <p className="text-xs text-rose-200 mt-1 font-bold">
+              You ran out of time on Level {levelConfig.levelNumber}!
+            </p>
+
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 my-4 text-xs text-slate-300">
+              <p className="font-semibold">
+                Watch a sponsored ad to add +30 seconds or restart the level!
+              </p>
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <button
+                onClick={() => {
+                  audio.playClick();
+                  setActiveAd({
+                    rewardType: 'time_extension',
+                    rewardTitle: '+30 SECONDS TIME',
+                    rewardDescription: 'Watch full sponsored ad to get 30 extra seconds!',
+                    requiredSeconds: 15,
+                  });
+                }}
+                className="w-full py-3.5 bg-gradient-to-r from-amber-500 via-orange-400 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-black text-xs sm:text-sm rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border-2 border-amber-200"
+              >
+                <Zap className="w-4 h-4 fill-slate-950 text-slate-950 animate-bounce" />
+                <span>WATCH AD FOR +30 SECONDS</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  audio.playClick();
+                  onReplayLevel();
+                  setIsTimeUp(false);
+                }}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-xs font-extrabold rounded-xl text-slate-200 transition-colors cursor-pointer border border-slate-700 uppercase"
+              >
+                Restart Level
+              </button>
             </div>
           </div>
         </div>

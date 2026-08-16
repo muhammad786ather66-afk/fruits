@@ -27,11 +27,12 @@ import { AchievementsModal } from './components/AchievementsModal';
 import { ThemesModal } from './components/ThemesModal';
 import { HowToPlayModal } from './components/HowToPlayModal';
 import { SettingsModal } from './components/SettingsModal';
+import { SplashScreen } from './components/SplashScreen';
 
 export default function App() {
   const [profiles, setProfiles] = useState<PlayerProfile[]>([]);
   const [activeProfile, setActiveProfile] = useState<PlayerProfile | null>(null);
-  const [activeScreen, setActiveScreen] = useState<ActiveScreen>('game');
+  const [activeScreen, setActiveScreen] = useState<ActiveScreen>('splash');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Settings State
@@ -188,37 +189,47 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0B132B] text-white flex flex-col font-sans select-none antialiased">
-      {/* Top Header Navigation */}
-      <Header
-        player={activeProfile}
-        activeScreen={activeScreen}
-        musicOn={musicOn}
-        isFullscreen={isFullscreen}
-        onNavigate={(screen) => setActiveScreen(screen)}
-        onOpenProfiles={() => setIsProfileModalOpen(true)}
-        onToggleMusic={() => setMusicOn((prev) => !prev)}
-        onToggleFullscreen={toggleFullscreen}
-      />
-
-      {/* Main Game Screen */}
-      <main className="flex-1 flex flex-col items-center justify-center relative w-full">
-        {levelConfig && activeProfile ? (
-          <GameView
-            levelConfig={levelConfig}
+      {activeScreen === 'splash' ? (
+        <SplashScreen
+          playerName={activeProfile?.name || 'Player 1'}
+          highestLevel={activeProfile?.highestLevelReached || 1}
+          onStartGame={() => setActiveScreen('game')}
+        />
+      ) : (
+        <>
+          {/* Top Header Navigation */}
+          <Header
             player={activeProfile}
-            onSaveProgress={handleSaveProgress}
-            onNextLevel={handleNextLevel}
-            onReplayLevel={handleReplayLevel}
-            onOpenLevelSelect={() => setActiveScreen('level_select')}
+            activeScreen={activeScreen}
+            musicOn={musicOn}
+            isFullscreen={isFullscreen}
+            onNavigate={(screen) => setActiveScreen(screen)}
             onOpenProfiles={() => setIsProfileModalOpen(true)}
+            onToggleMusic={() => setMusicOn((prev) => !prev)}
+            onToggleFullscreen={toggleFullscreen}
           />
-        ) : (
-          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
-            <div className="w-12 h-12 rounded-full border-4 border-amber-400 border-t-transparent animate-spin mb-4" />
-            <p className="text-sm font-semibold">Generating Fruit Puzzle...</p>
-          </div>
-        )}
-      </main>
+
+          {/* Main Game Screen */}
+          <main className="flex-1 flex flex-col items-center justify-center relative w-full">
+            {levelConfig && activeProfile ? (
+              <GameView
+                levelConfig={levelConfig}
+                player={activeProfile}
+                onSaveProgress={handleSaveProgress}
+                onNextLevel={handleNextLevel}
+                onReplayLevel={handleReplayLevel}
+                onOpenLevelSelect={() => setActiveScreen('level_select')}
+                onOpenProfiles={() => setIsProfileModalOpen(true)}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                <div className="w-12 h-12 rounded-full border-4 border-amber-400 border-t-transparent animate-spin mb-4" />
+                <p className="text-sm font-semibold">Generating Fruit Puzzle...</p>
+              </div>
+            )}
+          </main>
+        </>
+      )}
 
       {/* Modals & Overlays */}
       {isProfileModalOpen && (

@@ -69,6 +69,7 @@ export interface LevelConfig {
     | 'one_way'
     | 'wild'
   )[];
+  timeLimitSeconds?: number;
   initialBaskets: Basket[];
 }
 
@@ -134,6 +135,7 @@ export interface ThemeConfig {
 }
 
 export type ActiveScreen =
+  | 'splash'
   | 'game'
   | 'level_select'
   | 'daily_puzzle'

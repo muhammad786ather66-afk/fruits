@@ -304,6 +304,13 @@ function tryGenerateLevel(
     ? `Challenge Level ${levelNumber}`
     : undefined;
 
+  // Calculate suitable time limit according to puzzle complexity (minMoves) for levels 41+
+  let timeLimitSeconds: number | undefined = undefined;
+  if (levelNumber >= 41) {
+    const rawTime = solverRes.minMoves * 4.5 + 15;
+    timeLimitSeconds = Math.max(35, Math.min(180, Math.round(rawTime / 5) * 5));
+  }
+
   return {
     levelNumber,
     seed: seedString,
@@ -315,6 +322,7 @@ function tryGenerateLevel(
     isChallenge,
     challengeTitle,
     specialMechanics,
+    timeLimitSeconds,
     initialBaskets: currentBaskets,
   };
 }
