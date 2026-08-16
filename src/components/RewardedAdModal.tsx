@@ -22,7 +22,12 @@ import {
 } from 'lucide-react';
 import { audio } from '../lib/audio';
 
-export type AdRewardType = 'hint' | 'bottle' | 'next_level';
+export type AdRewardType =
+  | 'hint'
+  | 'bottle'
+  | 'next_level'
+  | 'two_ads_basket_1'
+  | 'two_ads_basket_2';
 
 interface RewardedAdModalProps {
   rewardType: AdRewardType;

@@ -37,17 +37,31 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
   woodAccentClass = 'bg-[#E9EDC9] text-[#5F6F52]',
   rimBgClass = 'bg-[#86A789]',
 }) => {
-  const { capacity, items, isLocked, unlockKeyType } = basket;
+  const {
+    capacity,
+    items,
+    isLocked,
+    unlockKeyType,
+    isOneWay,
+    labeledFruitType,
+    exactOrder,
+    isFrozenBasket,
+  } = basket;
 
   // Calculate container height dynamically based on capacity
   const isLargeCap = capacity >= 6;
   const slotHeightClass = isLargeCap ? 'h-9 sm:h-10' : 'h-10 sm:h-12';
   const containerHeightClass = isLargeCap ? 'min-h-[220px] sm:min-h-[260px]' : 'min-h-[190px] sm:min-h-[220px]';
 
-  // Check if basket is pure completed (full of 1 matching fruit type)
+  // Check if basket is pure completed (full of matching fruit type or exact order)
   const isCompleted =
     items.length === capacity &&
-    items.every((i) => i.type === items[0].type && !i.isFrozen);
+    !items.some((i) => i.isFrozen || i.isHidden) &&
+    (labeledFruitType
+      ? items.every((i) => i.type === labeledFruitType)
+      : exactOrder
+      ? items.every((i, idx) => i.type === exactOrder[idx])
+      : items.every((i) => i.type === items[0].type));
 
   return (
     <div
@@ -61,6 +75,22 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
       {(isHintSource || isHintTarget) && (
         <div className="absolute -top-7 text-xs font-bold px-2 py-0.5 rounded-full bg-[#5F6F52] text-white shadow-md animate-bounce z-30">
           {isHintSource ? 'FROM' : 'TO'}
+        </div>
+      )}
+
+      {/* Labeled Fruit Badge Indicator */}
+      {labeledFruitType && FRUITS[labeledFruitType] && (
+        <div className="mb-1 px-2 py-0.5 rounded-full bg-slate-900/90 border border-amber-400/80 text-[10px] font-black text-amber-300 flex items-center gap-1 shadow-md z-20">
+          <span>{FRUITS[labeledFruitType].emoji}</span>
+          <span className="uppercase tracking-wider">{FRUITS[labeledFruitType].name}</span>
+        </div>
+      )}
+
+      {/* One-Way Entry Badge Indicator */}
+      {isOneWay && (
+        <div className="mb-1 px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-400 text-[9px] font-black text-rose-300 flex items-center gap-1 z-20 shadow-md">
+          <span>⬇️</span>
+          <span>ONE-WAY</span>
         </div>
       )}
 
@@ -124,12 +154,34 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
                   size={isLargeCap ? 'sm' : 'md'}
                   isFrozen={item.isFrozen}
                   isWild={item.isWild}
+                  isHidden={item.isHidden}
                   isSelected={isTopAndSelected}
                 />
               </motion.div>
             );
           })}
         </AnimatePresence>
+
+        {/* Exact Order Helper Sequence Display */}
+        {exactOrder && exactOrder.length > 0 && (
+          <div className="absolute left-0.5 top-1 flex flex-col gap-0.5 pointer-events-none opacity-80 z-20">
+            {exactOrder.map((fType, idx) => (
+              <span key={`ord_${idx}`} className="text-[9px] bg-slate-900/90 rounded px-1 text-amber-200 font-bold border border-amber-500/30">
+                {FRUITS[fType]?.emoji}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Frozen Basket Overlay */}
+        {isFrozenBasket && (
+          <div className="absolute inset-0 bg-cyan-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-2 text-center z-20 rounded-b-xl border border-cyan-400">
+            <span className="text-xl">🧊</span>
+            <span className="text-[9px] font-black text-cyan-200 uppercase tracking-widest mt-1">
+              FROZEN
+            </span>
+          </div>
+        )}
 
         {/* Locked Overlay */}
         {isLocked && (
@@ -148,7 +200,7 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
         )}
       </div>
 
-      {/* Bottle Base Stand Accent (No text label) */}
+      {/* Bottle Base Stand Accent */}
       <div className="mt-1 h-1.5 w-12 rounded-full bg-[#E0E2D9] flex items-center justify-center">
         {isCompleted && (
           <span className="text-[10px] text-[#5F6F52] font-black leading-none">✓</span>

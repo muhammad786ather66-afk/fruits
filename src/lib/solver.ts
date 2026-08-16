@@ -21,10 +21,18 @@ function serializeBaskets(baskets: Basket[]): string {
   return baskets
     .map((b) => {
       const lockStr = b.isLocked ? '[L]' : '';
+      const oneWayStr = b.isOneWay ? '[1W]' : '';
+      const iceStr = b.isFrozenBasket ? '[ICE]' : '';
+      const labelStr = b.labeledFruitType ? `[LAB:${b.labeledFruitType}]` : '';
       const itemsStr = b.items
-        .map((i) => i.type + (i.isFrozen ? '*f' : '') + (i.isWild ? '*w' : ''))
+        .map(
+          (i) =>
+            (i.isHidden ? '?' : i.type) +
+            (i.isFrozen ? '*f' : '') +
+            (i.isWild ? '*w' : '')
+        )
         .join(',');
-      return `${lockStr}${b.capacity}:${itemsStr}`;
+      return `${lockStr}${oneWayStr}${iceStr}${labelStr}${b.capacity}:${itemsStr}`;
     })
     .join('|');
 }
@@ -33,12 +41,45 @@ function serializeBaskets(baskets: Basket[]): string {
 export function isBoardSolved(baskets: Basket[]): boolean {
   for (const b of baskets) {
     if (b.items.length === 0) continue;
-    if (b.isLocked) return false;
+    if (b.isLocked || b.isFrozenBasket) return false;
 
-    // Must be completely pure (only 1 fruit type)
+    // Check hidden or frozen items inside
+    const hasHiddenOrFrozen = b.items.some((item) => item.isHidden || item.isFrozen);
+    if (hasHiddenOrFrozen) return false;
+
+    // 1. Exact-Order Baskets
+    if (b.exactOrder && b.exactOrder.length > 0) {
+      if (b.items.length !== b.exactOrder.length) return false;
+      const matchesOrder = b.items.every(
+        (item, idx) => item.type === b.exactOrder![idx] || item.isWild
+      );
+      if (!matchesOrder) return false;
+      continue;
+    }
+
+    // 2. Fruit-Labeled Baskets
+    if (b.labeledFruitType) {
+      const matchesLabel = b.items.every(
+        (item) => item.type === b.labeledFruitType || item.isWild
+      );
+      if (!matchesLabel) return false;
+
+      // Must have all fruits of this type or full
+      if (b.items.length < b.capacity) {
+        const otherHasType = baskets.some(
+          (other) =>
+            other !== b &&
+            other.items.some((item) => item.type === b.labeledFruitType && !item.isWild)
+        );
+        if (otherHasType) return false;
+      }
+      continue;
+    }
+
+    // 3. Standard Basket: Must be completely pure (only 1 fruit type)
     const firstType = b.items[0].type;
     const isPure = b.items.every(
-      (item) => (item.type === firstType || item.isWild) && !item.isFrozen
+      (item) => (item.type === firstType || item.isWild)
     );
     if (!isPure) return false;
 
@@ -46,7 +87,7 @@ export function isBoardSolved(baskets: Basket[]): boolean {
     if (b.items.length < b.capacity) {
       // Check if any other basket contains this fruit type
       const otherHasType = baskets.some(
-        (other, idx) =>
+        (other) =>
           other !== b &&
           other.items.some((item) => item.type === firstType && !item.isWild)
       );
@@ -68,11 +109,28 @@ export function isMoveLegal(
 
   if (!fromBasket || !toBasket) return false;
   if (fromBasket.isLocked || toBasket.isLocked) return false;
+  if (fromBasket.isFrozenBasket || toBasket.isFrozenBasket) return false;
+  if (fromBasket.isOneWay) return false; // One-way baskets accept fruits but items CANNOT be removed!
   if (fromBasket.items.length === 0) return false;
   if (toBasket.items.length >= toBasket.capacity) return false;
 
   const topItem = fromBasket.items[fromBasket.items.length - 1];
-  if (topItem.isFrozen) return false;
+  if (topItem.isFrozen) return false; // Frozen fruits cannot be moved
+
+  // Destination Exact Order Check
+  if (toBasket.exactOrder && toBasket.exactOrder.length > 0) {
+    const destIndex = toBasket.items.length;
+    if (destIndex >= toBasket.exactOrder.length) return false;
+    const requiredType = toBasket.exactOrder[destIndex];
+    return topItem.type === requiredType || topItem.isWild;
+  }
+
+  // Destination Fruit Label Check
+  if (toBasket.labeledFruitType) {
+    if (topItem.type !== toBasket.labeledFruitType && !topItem.isWild) {
+      return false;
+    }
+  }
 
   if (toBasket.items.length === 0) return true;
 
@@ -87,6 +145,7 @@ export function cloneBaskets(baskets: Basket[]): Basket[] {
   return baskets.map((b) => ({
     ...b,
     items: b.items.map((item) => ({ ...item })),
+    exactOrder: b.exactOrder ? [...b.exactOrder] : undefined,
   }));
 }
 
@@ -103,20 +162,25 @@ export function executeMove(
   const item = from.items.pop();
   if (!item) return nextBaskets;
 
+  // Once moved, item is no longer hidden
+  item.isHidden = false;
   to.items.push(item);
 
-  // Auto unlock mechanic if key fruit is placed into destination or moved
+  // Auto unlock key mechanic
   nextBaskets.forEach((b) => {
     if (b.isLocked && b.unlockKeyType === item.type) {
       b.isLocked = false;
     }
   });
 
-  // Unfreeze top item if unblock conditions met
+  // Reveal top item in source basket if hidden or unfreeze if frozen
   if (from.items.length > 0) {
     const newTop = from.items[from.items.length - 1];
     if (newTop.isFrozen) {
       newTop.isFrozen = false;
+    }
+    if (newTop.isHidden) {
+      newTop.isHidden = false;
     }
   }
 

@@ -12,6 +12,7 @@ interface FruitRendererProps {
   size?: 'sm' | 'md' | 'lg';
   isFrozen?: boolean;
   isWild?: boolean;
+  isHidden?: boolean;
   isSelected?: boolean;
   showName?: boolean;
 }
@@ -21,6 +22,7 @@ export const FruitRenderer: React.FC<FruitRendererProps> = ({
   size = 'md',
   isFrozen = false,
   isWild = false,
+  isHidden = false,
   isSelected = false,
   showName = false,
 }) => {
@@ -31,6 +33,24 @@ export const FruitRenderer: React.FC<FruitRendererProps> = ({
     md: 'w-11 h-11 text-2xl',
     lg: 'w-14 h-14 text-3xl',
   }[size];
+
+  // Render Hidden Fruit (Mystery crate / Question mark)
+  if (isHidden) {
+    return (
+      <div
+        className={`relative flex flex-col items-center justify-center transition-all duration-200 ${
+          isSelected ? '-translate-y-3 scale-125 z-30' : ''
+        }`}
+      >
+        <div
+          className={`relative rounded-full flex items-center justify-center select-none ${sizeClasses} transition-all duration-200 bg-gradient-to-br from-indigo-900 via-purple-950 to-slate-900 border-2 border-amber-400/80 shadow-[0_0_12px_rgba(245,158,11,0.3)]`}
+        >
+          <div className="absolute inset-0 rounded-full bg-amber-400/10 backdrop-blur-[1px]" />
+          <span className="text-amber-300 font-black drop-shadow-md z-10 text-sm sm:text-base">❓</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

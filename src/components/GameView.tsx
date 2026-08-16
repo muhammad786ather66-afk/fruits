@@ -72,6 +72,7 @@ export const GameView: React.FC<GameViewProps> = ({
   const [freeHintsRemaining, setFreeHintsRemaining] = useState<number>(
     levelConfig.isChallenge ? 0 : 1
   );
+  const [adsWatchedForExtraBasket, setAdsWatchedForExtraBasket] = useState<number>(0);
   const [activeAd, setActiveAd] = useState<{
     rewardType: AdRewardType;
     rewardTitle: string;
@@ -91,6 +92,7 @@ export const GameView: React.FC<GameViewProps> = ({
     setMovesCount(0);
     setHintsUsed(0);
     setFreeHintsRemaining(levelConfig.isChallenge ? 0 : 1);
+    setAdsWatchedForExtraBasket(0);
     setHintMove(null);
     setExtraBottlesAdded(0);
     setWrongMovesCount(0);
@@ -141,6 +143,25 @@ export const GameView: React.FC<GameViewProps> = ({
     });
   };
 
+  // Handle 2 Ads for 1 Extra Basket (Optional reward for hard levels 100+)
+  const handleWatch2AdsForExtraBasket = () => {
+    if (adsWatchedForExtraBasket === 0) {
+      setActiveAd({
+        rewardType: 'two_ads_basket_1',
+        rewardTitle: 'AD 1/2: EXTRA BASKET REWARD',
+        rewardDescription: 'Watch Ad 1 of 2 to unlock an extra basket for this level',
+        requiredSeconds: 15,
+      });
+    } else if (adsWatchedForExtraBasket === 1) {
+      setActiveAd({
+        rewardType: 'two_ads_basket_2',
+        rewardTitle: 'AD 2/2: EXTRA BASKET REWARD',
+        rewardDescription: 'Watch Ad 2 of 2 to claim your extra basket!',
+        requiredSeconds: 15,
+      });
+    }
+  };
+
   // Claim handler when a full 10-15s ad completes watching
   const handleClaimAdReward = () => {
     if (!activeAd) return;
@@ -170,6 +191,23 @@ export const GameView: React.FC<GameViewProps> = ({
         },
       ]);
       audio.speakVoice("Ad completed! Extra tube added to puzzle.");
+    } else if (type === 'two_ads_basket_1') {
+      audio.playBasketComplete();
+      setAdsWatchedForExtraBasket(1);
+      audio.speakVoice("Ad 1 of 2 completed! Watch second ad to unlock extra basket.");
+    } else if (type === 'two_ads_basket_2') {
+      audio.playBasketComplete();
+      setAdsWatchedForExtraBasket(2);
+      setExtraBottlesAdded((prev) => prev + 1);
+      setBaskets((prev) => [
+        ...prev,
+        {
+          id: `basket_reward_extra_${Date.now()}`,
+          capacity: levelConfig.basketCapacity,
+          items: [],
+        },
+      ]);
+      audio.speakVoice("Ad 2 completed! Extra basket added to puzzle.");
     } else if (type === 'next_level') {
       audio.playClick();
       onNextLevel();
@@ -509,6 +547,31 @@ export const GameView: React.FC<GameViewProps> = ({
               Level {levelConfig.levelNumber}
             </span>
           </div>
+
+          {/* Mechanic Progression Theme Badge */}
+          <div className="mt-1 bg-slate-900/90 border border-amber-400/50 text-amber-300 font-extrabold text-[9px] sm:text-[10px] uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md flex items-center gap-1">
+            <span>💡</span>
+            <span>
+              {levelConfig.levelNumber <= 20
+                ? 'CLASSIC SORTING'
+                : levelConfig.levelNumber <= 40
+                ? 'LABELED BASKETS'
+                : levelConfig.levelNumber <= 60
+                ? 'LIMITED CAPACITY'
+                : levelConfig.levelNumber <= 80
+                ? 'LOCKED BASKETS & KEYS'
+                : levelConfig.levelNumber <= 100
+                ? 'HIDDEN MYSTERY FRUITS'
+                : levelConfig.levelNumber <= 125
+                ? 'EXACT-ORDER BASKETS'
+                : levelConfig.levelNumber <= 150
+                ? 'FROZEN BASKETS'
+                : levelConfig.levelNumber <= 200
+                ? 'ONE-WAY TUBES'
+                : 'COMBINED MECHANICS'}
+            </span>
+          </div>
+
           {isGrandLevel && (
             <div className="mt-1 bg-red-600 text-white font-black text-[9px] sm:text-[10px] uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md border border-red-300 animate-pulse">
               🔥 SUPER HARD - GRAND PUZZLE 🔥
@@ -580,6 +643,26 @@ export const GameView: React.FC<GameViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* Optional Rewarded Ad 2-Ad Extra Basket Button for Hard Levels (100+) */}
+      {levelConfig.levelNumber >= 100 && extraBottlesAdded === 0 && (
+        <div className="w-full max-w-md flex items-center justify-center my-1 z-20">
+          <button
+            onClick={handleWatch2AdsForExtraBasket}
+            disabled={isWon || showRestartToast}
+            className="w-full py-2 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 font-black text-xs rounded-2xl shadow-xl border-2 border-amber-300 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-102 active:scale-98"
+          >
+            <Zap className="w-4 h-4 fill-slate-950 text-slate-950 animate-bounce" />
+            <span>
+              {adsWatchedForExtraBasket === 0
+                ? 'WATCH 2 ADS → GET 1 EXTRA BASKET'
+                : adsWatchedForExtraBasket === 1
+                ? 'WATCH SECOND AD (1/2) → UNLOCK BASKET'
+                : 'EXTRA BASKET UNLOCKED (+1)'}
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Bottom Control Toolbar - Vibrant 3D Circular Buttons matching user photo */}
       <div className="w-full max-w-md flex items-center justify-around py-2 z-30">

@@ -66,91 +66,152 @@ function tryGenerateLevel(
 ): LevelConfig | null {
   const isChallenge = levelNumber >= 5 && levelNumber % 5 === 0;
 
-  // Progression Difficulty Scaling
+  // Level Range Mechanics Breakdown according to Progression Rules:
+  // Level 1-20: Completely Normal (No special mechanics)
+  // Level 21-40: Labeled Baskets
+  // Level 41-60: Limited Capacity Baskets
+  // Level 61-80: Locked Baskets + Keys
+  // Level 81-100: Hidden Fruits
+  // Level 101-125: Exact Order Baskets
+  // Level 126-150: Frozen Fruits / Baskets
+  // Level 151-200: One-Way Baskets
+  // Level 201+: Gradual Combinations of mechanics
+
+  type MechanicType =
+    | 'labeled'
+    | 'limited_capacity'
+    | 'locked'
+    | 'hidden'
+    | 'exact_order'
+    | 'frozen'
+    | 'one_way';
+
+  const specialMechanics: MechanicType[] = [];
+
+  if (levelNumber <= 20) {
+    // Completely normal, no special mechanics!
+  } else if (levelNumber <= 40) {
+    specialMechanics.push('labeled');
+  } else if (levelNumber <= 60) {
+    specialMechanics.push('limited_capacity');
+  } else if (levelNumber <= 80) {
+    specialMechanics.push('locked');
+  } else if (levelNumber <= 100) {
+    specialMechanics.push('hidden');
+  } else if (levelNumber <= 125) {
+    specialMechanics.push('exact_order');
+  } else if (levelNumber <= 150) {
+    specialMechanics.push('frozen');
+  } else if (levelNumber <= 200) {
+    specialMechanics.push('one_way');
+  } else if (levelNumber <= 300) {
+    // 2 Combined Mechanics
+    const pool: MechanicType[] = ['labeled', 'limited_capacity', 'locked', 'hidden'];
+    const m1 = pool[Math.floor(rng() * pool.length)];
+    const m2 = pool.filter((m) => m !== m1)[Math.floor(rng() * (pool.length - 1))];
+    specialMechanics.push(m1, m2);
+  } else if (levelNumber <= 500) {
+    // 2-3 Combined Mechanics
+    const pool: MechanicType[] = ['labeled', 'limited_capacity', 'locked', 'hidden', 'exact_order', 'one_way'];
+    const count = 2 + (rng() > 0.5 ? 1 : 0);
+    const shuffled = shuffleArray(pool, rng);
+    specialMechanics.push(...shuffled.slice(0, count));
+  } else {
+    // Expert/Master Mode: 3-4 Combined Mechanics
+    const pool: MechanicType[] = [
+      'labeled',
+      'limited_capacity',
+      'locked',
+      'hidden',
+      'exact_order',
+      'frozen',
+      'one_way',
+    ];
+    const shuffled = shuffleArray(pool, rng);
+    specialMechanics.push(...shuffled.slice(0, 3));
+  }
+
+  // Fruit & Basket Count Progression
   let numFruitTypes = 2;
-  let basketCapacity = 4;
   let emptyBasketsCount = 2;
+  let defaultCapacity = 4;
 
   if (levelNumber === 1) {
     numFruitTypes = 2;
-    emptyBasketsCount = 2;
   } else if (levelNumber === 2) {
     numFruitTypes = 3;
-    emptyBasketsCount = 2;
   } else if (levelNumber <= 5) {
     numFruitTypes = 3;
-    emptyBasketsCount = 2;
   } else if (levelNumber <= 10) {
     numFruitTypes = 4;
-    emptyBasketsCount = 2;
   } else if (levelNumber <= 20) {
     numFruitTypes = 5;
-    emptyBasketsCount = 2;
   } else if (levelNumber <= 40) {
-    numFruitTypes = 6;
-    basketCapacity = rng() > 0.6 ? 5 : 4;
-    emptyBasketsCount = 2;
+    numFruitTypes = 5;
   } else if (levelNumber <= 80) {
+    numFruitTypes = 6;
+  } else if (levelNumber <= 150) {
     numFruitTypes = 7;
-    basketCapacity = rng() > 0.5 ? 5 : 4;
-    emptyBasketsCount = 2;
+  } else if (levelNumber <= 300) {
+    numFruitTypes = 8;
   } else {
-    // Endless mode beyond 80
-    numFruitTypes = 8 + (levelNumber % 3); // 8, 9, 10
-    basketCapacity = rng() > 0.5 ? 5 : 4;
-    emptyBasketsCount = (levelNumber % 6 === 0) ? 3 : 2;
+    numFruitTypes = Math.min(ALL_FRUIT_TYPES.length, 8 + (levelNumber % 5));
   }
 
-  if (isChallenge) {
+  if (isChallenge && levelNumber > 5) {
     numFruitTypes = Math.min(ALL_FRUIT_TYPES.length, numFruitTypes + 1);
-    emptyBasketsCount = 1; // Tough Challenge: only 1 empty bottle!
+    emptyBasketsCount = 1; // Challenge levels have tighter empty space!
   }
 
-  // Pick fruit types deterministically for this level using Fisher-Yates
+  // Choose Fruit Types
   const chosenFruitTypes = shuffleArray(ALL_FRUIT_TYPES, rng).slice(0, numFruitTypes);
 
-  // Generate solved state first (Reverse move shuffling guarantees solvability)
+  // Build Solved Initial State
   const baskets: Basket[] = [];
-  const totalFilledBaskets = numFruitTypes;
   let itemIdCounter = 1;
 
-  for (let i = 0; i < totalFilledBaskets; i++) {
+  for (let i = 0; i < numFruitTypes; i++) {
     const fType = chosenFruitTypes[i];
+    let bCap = defaultCapacity;
+
+    if (specialMechanics.includes('limited_capacity') && i % 2 === 1) {
+      bCap = 3; // Limited capacity basket
+    }
+
     const items: FruitItem[] = [];
-    for (let c = 0; c < basketCapacity; c++) {
+    for (let c = 0; c < bCap; c++) {
       items.push({
         id: `f_${levelNumber}_${itemIdCounter++}`,
         type: fType,
       });
     }
-    baskets.push({
+
+    const basketObj: Basket = {
       id: `basket_${i}`,
-      capacity: basketCapacity,
+      capacity: bCap,
       items,
-    });
+    };
+
+    if (specialMechanics.includes('labeled') && i < 2) {
+      basketObj.labeledFruitType = fType;
+    }
+
+    baskets.push(basketObj);
   }
 
   // Add empty baskets
   for (let e = 0; e < emptyBasketsCount; e++) {
     baskets.push({
       id: `basket_empty_${e}`,
-      capacity: basketCapacity,
+      capacity: defaultCapacity,
       items: [],
     });
   }
 
-  // Special mechanics for level 25+
-  const specialMechanics: ('locked' | 'frozen' | 'wild')[] = [];
-  if (levelNumber >= 25 && rng() > 0.7) {
-    specialMechanics.push('locked');
-  } else if (levelNumber >= 40 && rng() > 0.7) {
-    specialMechanics.push('frozen');
-  }
-
-  // Apply Reverse Moves to shuffle the solved board
+  // Apply Reverse Moves to Shuffle Puzzles Solvably
   const shuffleMovesCount = Math.min(
-    100,
-    12 + Math.min(60, levelNumber * 2) + Math.floor(rng() * 15)
+    120,
+    10 + Math.min(70, levelNumber * 2) + Math.floor(rng() * 20)
   );
 
   let currentBaskets = baskets.map((b) => ({
@@ -179,38 +240,68 @@ function tryGenerateLevel(
     currentBaskets[chosenMove.to].items.push(item);
   }
 
-  // Ensure it didn't end up already solved
+  // Ensure board is not already solved
   if (isBoardSolved(currentBaskets)) {
     return null;
   }
 
-  // Apply special mechanics if requested
+  // Apply mechanic modifiers
+  if (specialMechanics.includes('hidden')) {
+    currentBaskets.forEach((b) => {
+      if (b.items.length > 1) {
+        // Hide items below top item
+        for (let idx = 0; idx < b.items.length - 1; idx++) {
+          if (rng() > 0.4) {
+            b.items[idx].isHidden = true;
+          }
+        }
+      }
+    });
+  }
+
   if (specialMechanics.includes('locked') && currentBaskets.length > 3) {
-    const lockedIdx = Math.floor(rng() * (currentBaskets.length - 1));
+    const lockTargetIdx = Math.floor(rng() * (currentBaskets.length - emptyBasketsCount));
     const keyFruitType = chosenFruitTypes[Math.floor(rng() * chosenFruitTypes.length)];
-    currentBaskets[lockedIdx].isLocked = true;
-    currentBaskets[lockedIdx].unlockKeyType = keyFruitType;
+    currentBaskets[lockTargetIdx].isLocked = true;
+    currentBaskets[lockTargetIdx].unlockKeyType = keyFruitType;
+  }
+
+  if (specialMechanics.includes('one_way') && currentBaskets.length > 3) {
+    // Set 1 empty basket as one-way
+    const emptyIdx = currentBaskets.findIndex((b) => b.items.length === 0 && !b.isLocked);
+    if (emptyIdx !== -1) {
+      currentBaskets[emptyIdx].isOneWay = true;
+    }
+  }
+
+  if (specialMechanics.includes('exact_order')) {
+    // Pick 1 filled basket and assign exact sequence requirement based on current items
+    const filledWithItems = currentBaskets.filter((b) => b.items.length === defaultCapacity);
+    if (filledWithItems.length > 0) {
+      const targetB = filledWithItems[0];
+      targetB.exactOrder = targetB.items.map((i) => i.type);
+    }
   }
 
   if (specialMechanics.includes('frozen')) {
     const candidateBaskets = currentBaskets.filter((b) => b.items.length > 2);
     if (candidateBaskets.length > 0) {
-      const targetB = candidateBaskets[Math.floor(rng() * candidateBaskets.length)];
+      const targetB = candidateBaskets[0];
       if (targetB.items.length > 0) {
         targetB.items[0].isFrozen = true;
       }
     }
   }
 
-  // Validate with Solver
-  const solverRes = solvePuzzle(currentBaskets, 2500);
+  // Validate with BFS Solver Engine
+  const solverRes = solvePuzzle(currentBaskets, 3500);
 
   if (!solverRes.isSolvable) {
     return null; // Reject unsolvable puzzle!
   }
 
   const challengeTitle = isChallenge
-    ? `Challenge #${Math.ceil(levelNumber / 10)}`
+    ? `Challenge Level ${levelNumber}`
     : undefined;
 
   return {
@@ -219,7 +310,7 @@ function tryGenerateLevel(
     fruitTypes: chosenFruitTypes,
     basketsCount: currentBaskets.length,
     emptyBasketsCount,
-    basketCapacity,
+    basketCapacity: defaultCapacity,
     maxMovesTarget: Math.ceil(solverRes.minMoves * 1.5) + 3,
     isChallenge,
     challengeTitle,

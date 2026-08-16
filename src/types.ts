@@ -24,6 +24,7 @@ export interface FruitItem {
   isFrozen?: boolean;
   isWild?: boolean;
   isKey?: boolean;
+  isHidden?: boolean;
 }
 
 export interface Basket {
@@ -34,6 +35,9 @@ export interface Basket {
   unlockKeyType?: FruitType;
   isOneWay?: boolean;
   isIce?: boolean;
+  labeledFruitType?: FruitType;
+  exactOrder?: FruitType[];
+  isFrozenBasket?: boolean;
 }
 
 export interface MoveRecord {
@@ -42,6 +46,7 @@ export interface MoveRecord {
   movedItem: FruitItem;
   unlockedBasketId?: string;
   unfrozenFruitId?: string;
+  unhiddenFruitId?: string;
 }
 
 export interface LevelConfig {
@@ -54,7 +59,16 @@ export interface LevelConfig {
   maxMovesTarget: number;
   isChallenge?: boolean;
   challengeTitle?: string;
-  specialMechanics?: ('locked' | 'frozen' | 'wild' | 'one_way' | 'ice')[];
+  specialMechanics?: (
+    | 'labeled'
+    | 'limited_capacity'
+    | 'locked'
+    | 'hidden'
+    | 'exact_order'
+    | 'frozen'
+    | 'one_way'
+    | 'wild'
+  )[];
   initialBaskets: Basket[];
 }
 
