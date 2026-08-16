@@ -18,6 +18,7 @@ import {
   Settings,
   AlertTriangle,
   FlaskConical,
+  ExternalLink,
 } from 'lucide-react';
 import { Basket, LevelConfig, MoveRecord, PlayerProfile } from '../types';
 import { BasketContainer } from './BasketContainer';
@@ -66,6 +67,12 @@ export const GameView: React.FC<GameViewProps> = ({
   const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<number | null>(null);
   const [isAutoPaused, setIsAutoPaused] = useState(false);
 
+  // Interstitial Ad Modal state
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [adTimer, setAdTimer] = useState(3);
+
+  const AD_URL = "https://www.effectivecpmnetwork.com/injygstv?key=58b512b8278fdb4d1fb08d6d0bad6c5e";
+
   const isGrandLevel = levelConfig.levelNumber % 5 === 0 || levelConfig.isChallenge;
 
   // Re-initialize state when levelConfig changes
@@ -83,6 +90,8 @@ export const GameView: React.FC<GameViewProps> = ({
     setWinStats(null);
     setAutoAdvanceTimer(null);
     setIsAutoPaused(false);
+    setShowAdModal(false);
+    setAdTimer(3);
 
     // Announce level start with Voice
     if (isGrandLevel) {
@@ -92,18 +101,18 @@ export const GameView: React.FC<GameViewProps> = ({
     }
   }, [levelConfig]);
 
-  // Handle automatic progression to next level on win
+  // Handle automatic progression to next level on win -> shows Interstitial Ad modal first
   useEffect(() => {
-    if (!isWon || isAutoPaused) {
+    if (!isWon || isAutoPaused || showAdModal) {
       return;
     }
 
-    setAutoAdvanceTimer(3);
+    setAutoAdvanceTimer(4);
     const interval = setInterval(() => {
       setAutoAdvanceTimer((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
-          onNextLevel();
+          handleProceedToAd();
           return 0;
         }
         return prev - 1;
@@ -111,7 +120,54 @@ export const GameView: React.FC<GameViewProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isWon, isAutoPaused, onNextLevel]);
+  }, [isWon, isAutoPaused, showAdModal]);
+
+  // Trigger Interstitial Ad before Next Level
+  const handleProceedToAd = () => {
+    setIsAutoPaused(true);
+    setShowAdModal(true);
+    setAdTimer(3);
+
+    // Countdown 3 seconds before skip becomes active
+    const timer = setInterval(() => {
+      setAdTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleCompleteAdAndNextLevel = () => {
+    setShowAdModal(false);
+    onNextLevel();
+  };
+
+  const handleVisitAdLink = () => {
+    window.open(AD_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  // Ensure full screen when playing
+  const ensureFullscreenOnPlay = () => {
+    if (typeof document !== 'undefined' && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
+
+  // Exit/Toggle Fullscreen when clicked on empty free space
+  const handleBackgroundClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      if (typeof document !== 'undefined') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        } else {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      }
+    }
+  };
 
   // Max extra bottles allowed dynamically scaled according to level complexity
   const getMaxExtraBottlesForLevel = (lvlNum: number, isChallenge?: boolean): number => {
@@ -127,6 +183,7 @@ export const GameView: React.FC<GameViewProps> = ({
   // Handle basket selection and fruit movement
   const handleSelectBasket = (targetIdx: number) => {
     audio.ensureMusicPlaying();
+    ensureFullscreenOnPlay();
     if (isWon || showRestartToast) return;
     setHintMove(null);
 
@@ -290,6 +347,7 @@ export const GameView: React.FC<GameViewProps> = ({
   // Undo previous move
   const handleUndo = () => {
     audio.ensureMusicPlaying();
+    ensureFullscreenOnPlay();
     if (moveHistory.length === 0 || isWon || showRestartToast) return;
     audio.playUndo();
 
@@ -322,6 +380,7 @@ export const GameView: React.FC<GameViewProps> = ({
   // Run Solver for Hint
   const handleHint = () => {
     audio.ensureMusicPlaying();
+    ensureFullscreenOnPlay();
     if (isWon || showRestartToast) return;
     audio.playHint();
     setHintsUsed((prev) => prev + 1);
@@ -339,6 +398,7 @@ export const GameView: React.FC<GameViewProps> = ({
   // Add Extra Bottle feature with strict level-based complexity rules
   const handleAddBottle = () => {
     audio.ensureMusicPlaying();
+    ensureFullscreenOnPlay();
     if (isWon || showRestartToast) return;
 
     if (levelConfig.levelNumber <= 5) {
@@ -373,7 +433,10 @@ export const GameView: React.FC<GameViewProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-[#0B132B] via-[#1C2541] to-[#0B132B] text-white min-h-[calc(100vh-52px)] relative overflow-hidden select-none">
+    <div
+      onClick={handleBackgroundClick}
+      className="w-full flex-1 flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-[#0B132B] via-[#1C2541] to-[#0B132B] text-white min-h-[calc(100vh-52px)] relative overflow-hidden select-none cursor-pointer"
+    >
       {/* Background Palm Trees / Tropical Sunset Backdrop matching user photo */}
       <div className="absolute inset-x-0 bottom-0 h-36 opacity-20 pointer-events-none flex items-end justify-between px-4">
         <div className="w-28 h-28 bg-emerald-500/20 rounded-full blur-2xl" />
@@ -642,7 +705,7 @@ export const GameView: React.FC<GameViewProps> = ({
               <button
                 onClick={() => {
                   audio.playClick();
-                  onNextLevel();
+                  handleProceedToAd();
                 }}
                 className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
               >
@@ -671,6 +734,66 @@ export const GameView: React.FC<GameViewProps> = ({
                   Level Select
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interstitial Ad Modal (Triggers between levels) */}
+      {showAdModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-gradient-to-b from-[#1C2541] to-[#0B132B] border-2 border-amber-400/50 rounded-3xl w-full max-w-md p-6 text-white shadow-2xl text-center relative overflow-hidden flex flex-col items-center">
+            {/* Top Sponsor Pill */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-black uppercase tracking-widest mb-4">
+              <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span>SPONSORED INTERSTITIAL AD</span>
+            </div>
+
+            {/* Ad Banner Content Frame */}
+            <div className="w-full bg-slate-900/90 border border-slate-700 rounded-2xl p-4 my-2 flex flex-col items-center gap-3 shadow-inner">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-500 via-amber-400 to-purple-600 p-0.5 shadow-[0_0_20px_rgba(244,63,94,0.6)] flex items-center justify-center">
+                <span className="text-3xl">🎁</span>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-amber-300 tracking-wide uppercase">
+                  SPECIAL SPONSOR BONUS
+                </h3>
+                <p className="text-xs text-slate-300 font-medium leading-relaxed max-w-xs">
+                  Visit our official network sponsor to support Fruit Sort & unlock bonus level rewards!
+                </p>
+              </div>
+
+              {/* Direct Link Action Button */}
+              <button
+                onClick={handleVisitAdLink}
+                className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border border-amber-200 hover:scale-102"
+              >
+                <span>🔥 VISIT SPONSOR AD LINK 🔥</span>
+                <ExternalLink className="w-4 h-4 text-slate-950 stroke-[3]" />
+              </button>
+            </div>
+
+            {/* Countdown / Skip Button */}
+            <div className="w-full mt-4 space-y-2">
+              <button
+                onClick={handleCompleteAdAndNextLevel}
+                disabled={adTimer > 0}
+                className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
+                  adTimer > 0
+                    ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg border border-emerald-300/40'
+                }`}
+              >
+                {adTimer > 0 ? (
+                  <span>CONTINUE IN {adTimer}s...</span>
+                ) : (
+                  <>
+                    <span>SKIP AD & PLAY NEXT LEVEL</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -327,7 +327,8 @@ class SoundEngine {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(note, now + i * 0.22);
 
-        gain.gain.setValueAtTime(0.035, now + i * 0.22);
+        // 50% comfortable volume boost (0.18 gain scale)
+        gain.gain.setValueAtTime(0.18, now + i * 0.22);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.22 + 2.2);
 
         osc.connect(gain);

@@ -167,16 +167,37 @@ export default function App() {
     setActiveScreen('game');
   };
 
+  // Fullscreen State Tracking
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#F7F9F2] text-[#4A4941] flex flex-col font-sans select-none antialiased">
+    <div className="min-h-screen bg-[#0B132B] text-white flex flex-col font-sans select-none antialiased">
       {/* Top Header Navigation */}
       <Header
         player={activeProfile}
         activeScreen={activeScreen}
         musicOn={musicOn}
+        isFullscreen={isFullscreen}
         onNavigate={(screen) => setActiveScreen(screen)}
         onOpenProfiles={() => setIsProfileModalOpen(true)}
         onToggleMusic={() => setMusicOn((prev) => !prev)}
+        onToggleFullscreen={toggleFullscreen}
       />
 
       {/* Main Game Screen */}
