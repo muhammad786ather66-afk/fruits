@@ -41,8 +41,8 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
 
   // Calculate container height dynamically based on capacity
   const isLargeCap = capacity >= 6;
-  const slotHeightClass = isLargeCap ? 'h-10' : 'h-12';
-  const containerHeightClass = isLargeCap ? 'min-h-[260px]' : 'min-h-[220px]';
+  const slotHeightClass = isLargeCap ? 'h-9 sm:h-10' : 'h-10 sm:h-12';
+  const containerHeightClass = isLargeCap ? 'min-h-[220px] sm:min-h-[260px]' : 'min-h-[190px] sm:min-h-[220px]';
 
   // Check if basket is pure completed (full of 1 matching fruit type)
   const isCompleted =
@@ -66,7 +66,7 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
 
       {/* Basket/Bottle Top Cork & Rim */}
       <div
-        className={`w-16 sm:w-20 h-4 rounded-t-lg border-t-2 border-x-2 ${basketBorderClass} ${
+        className={`w-14 sm:w-18 md:w-20 h-3.5 sm:h-4 rounded-t-lg border-t-2 border-x-2 ${basketBorderClass} ${
           isSelected
             ? 'bg-[#5F6F52] border-[#3A4730] ring-2 ring-[#5F6F52]/80'
             : isValidDestination
@@ -79,7 +79,7 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
 
       {/* Main Bottle Body / Stack Tube */}
       <div
-        className={`relative w-16 sm:w-20 ${containerHeightClass} rounded-b-xl border-b-2 border-x-2 ${basketBorderClass} ${basketBgClass} backdrop-blur-xs flex flex-col-reverse items-center justify-start p-1 gap-1.5 shadow-inner transition-all duration-200 overflow-hidden ${
+        className={`relative w-14 sm:w-18 md:w-20 ${containerHeightClass} rounded-b-xl border-b-2 border-x-2 ${basketBorderClass} ${basketBgClass} backdrop-blur-xs flex flex-col-reverse items-center justify-start p-1 gap-1 sm:gap-1.5 shadow-inner transition-all duration-200 overflow-hidden ${
           isSelected
             ? 'ring-4 ring-[#5F6F52]/70 shadow-[0_0_15px_rgba(95,111,82,0.3)]'
             : isValidDestination
@@ -148,12 +148,11 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
         )}
       </div>
 
-      {/* Basket Woven/Wood Label Foot */}
-      <div
-        className={`mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider shadow-sm ${woodAccentClass} flex items-center gap-1`}
-      >
-        <span>Basket #{basketIndex + 1}</span>
-        {isCompleted && <span className="text-emerald-300">✓</span>}
+      {/* Bottle Base Stand Accent (No text label) */}
+      <div className="mt-1 h-1.5 w-12 rounded-full bg-[#E0E2D9] flex items-center justify-center">
+        {isCompleted && (
+          <span className="text-[10px] text-[#5F6F52] font-black leading-none">✓</span>
+        )}
       </div>
     </div>
   );

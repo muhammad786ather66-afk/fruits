@@ -282,34 +282,36 @@ export const GameView: React.FC<GameViewProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-between p-3 bg-[#F7F9F2] text-[#4A4941] min-h-[calc(100vh-56px)]">
-      {/* Top Level & Bottle Color Header */}
-      <div className="w-full max-w-xl bg-white border border-[#E0E2D9] rounded-2xl p-3 flex items-center justify-between shadow-xs mb-3">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-10 h-10 rounded-xl ${bottleTheme.accentBadgeBg} ${bottleTheme.accentText} border border-[#86A789]/30 flex flex-col items-center justify-center font-black text-sm shadow-xs`}>
-            <span>LVL</span>
-            <span className="text-base leading-none">{levelConfig.levelNumber}</span>
+    <div className="w-full flex-1 flex flex-col items-center justify-between p-2 sm:p-3 bg-[#F7F9F2] text-[#4A4941] min-h-[calc(100vh-52px)]">
+      {/* Top Level Status Header */}
+      <div className="w-full max-w-xl bg-white border border-[#E0E2D9] rounded-2xl p-2.5 sm:p-3 flex items-center justify-between shadow-xs mb-2 sm:mb-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${bottleTheme.accentBadgeBg} ${bottleTheme.accentText} border border-[#86A789]/30 flex flex-col items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0`}>
+            <span className="text-[9px] sm:text-[10px] leading-tight">LVL</span>
+            <span className="text-sm sm:text-base leading-none">{levelConfig.levelNumber}</span>
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-black tracking-tight text-[#4A4941] flex items-center gap-2">
+            <h2 className="text-xs sm:text-sm font-black tracking-tight text-[#4A4941] flex items-center gap-1.5">
               <span>LEVEL {levelConfig.levelNumber}</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bottleTheme.accentBadgeBg} ${bottleTheme.accentText}`}>
-                Theme: {bottleTheme.name}
-              </span>
+              {levelConfig.isChallenge && (
+                <span className="text-[9px] bg-[#5F6F52] text-white font-black px-1.5 py-0.2 rounded-full uppercase">
+                  CHALLENGE
+                </span>
+              )}
             </h2>
-            <span className="text-[11px] text-[#9A9B8F] font-medium">
-              Target Moves: {levelConfig.maxMovesTarget}
+            <span className="text-[10px] sm:text-[11px] text-[#9A9B8F] font-semibold">
+              Target: {levelConfig.maxMovesTarget} moves
             </span>
           </div>
         </div>
 
         {/* Moves & Stars */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex flex-col items-end">
-            <span className="text-[10px] text-[#9A9B8F] font-bold uppercase tracking-wider">
+            <span className="text-[9px] sm:text-[10px] text-[#9A9B8F] font-bold uppercase tracking-wider">
               MOVES
             </span>
-            <span className="text-xl font-black text-[#5F6F52]">
+            <span className="text-base sm:text-xl font-black text-[#5F6F52]">
               {movesCount}
             </span>
           </div>
@@ -327,7 +329,7 @@ export const GameView: React.FC<GameViewProps> = ({
               return (
                 <Star
                   key={s}
-                  className={`w-5 h-5 ${
+                  className={`w-4 h-4 sm:w-5 sm:h-5 ${
                     hasStar
                       ? 'fill-[#86A789] text-[#86A789]'
                       : 'text-[#E0E2D9]'

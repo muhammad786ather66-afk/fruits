@@ -64,9 +64,9 @@ function tryGenerateLevel(
   rng: () => number,
   attempt: number
 ): LevelConfig | null {
-  const isChallenge = levelNumber > 5 && levelNumber % 10 === 0;
+  const isChallenge = levelNumber >= 5 && levelNumber % 5 === 0;
 
-  // Endless Level Difficulty Scaling
+  // Progression Difficulty Scaling
   let numFruitTypes = 2;
   let basketCapacity = 4;
   let emptyBasketsCount = 2;
@@ -74,30 +74,36 @@ function tryGenerateLevel(
   if (levelNumber === 1) {
     numFruitTypes = 2;
     emptyBasketsCount = 2;
+  } else if (levelNumber === 2) {
+    numFruitTypes = 3;
+    emptyBasketsCount = 2;
   } else if (levelNumber <= 5) {
     numFruitTypes = 3;
     emptyBasketsCount = 2;
-  } else if (levelNumber <= 15) {
-    numFruitTypes = 3 + Math.floor(rng() * 2); // 3-4
+  } else if (levelNumber <= 10) {
+    numFruitTypes = 4;
     emptyBasketsCount = 2;
-  } else if (levelNumber <= 30) {
-    numFruitTypes = 4 + Math.floor(rng() * 2); // 4-5
+  } else if (levelNumber <= 20) {
+    numFruitTypes = 5;
     emptyBasketsCount = 2;
-  } else if (levelNumber <= 60) {
-    numFruitTypes = 5 + Math.floor(rng() * 2); // 5-6
+  } else if (levelNumber <= 40) {
+    numFruitTypes = 6;
+    basketCapacity = rng() > 0.6 ? 5 : 4;
     emptyBasketsCount = 2;
-  } else if (levelNumber <= 120) {
-    numFruitTypes = 6 + Math.floor(rng() * 3); // 6-8
-    emptyBasketsCount = rng() > 0.8 ? 3 : 2;
+  } else if (levelNumber <= 80) {
+    numFruitTypes = 7;
+    basketCapacity = rng() > 0.5 ? 5 : 4;
+    emptyBasketsCount = 2;
   } else {
-    // Endless mode beyond 120: cycle through 6..9 fruit types
-    numFruitTypes = 6 + Math.min(ALL_FRUIT_TYPES.length - 6, (levelNumber % 6));
-    emptyBasketsCount = (levelNumber % 7 === 0) ? 3 : 2;
+    // Endless mode beyond 80
+    numFruitTypes = 8 + (levelNumber % 3); // 8, 9, 10
+    basketCapacity = rng() > 0.5 ? 5 : 4;
+    emptyBasketsCount = (levelNumber % 6 === 0) ? 3 : 2;
   }
 
   if (isChallenge) {
     numFruitTypes = Math.min(ALL_FRUIT_TYPES.length, numFruitTypes + 1);
-    emptyBasketsCount = 1; // Tougher: only 1 empty basket!
+    emptyBasketsCount = 1; // Tough Challenge: only 1 empty bottle!
   }
 
   // Pick fruit types deterministically for this level using Fisher-Yates
