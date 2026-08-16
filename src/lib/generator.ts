@@ -304,11 +304,10 @@ function tryGenerateLevel(
     ? `Challenge Level ${levelNumber}`
     : undefined;
 
-  // Calculate suitable time limit according to puzzle complexity (minMoves) for levels 41+
+  // Time limit for hard levels (isChallenge or level 41+) is set to 5 minutes (300 seconds)
   let timeLimitSeconds: number | undefined = undefined;
-  if (levelNumber >= 41) {
-    const rawTime = solverRes.minMoves * 4.5 + 15;
-    timeLimitSeconds = Math.max(35, Math.min(180, Math.round(rawTime / 5) * 5));
+  if (isChallenge || levelNumber >= 41) {
+    timeLimitSeconds = 300; // Exactly 5 minutes (300 seconds)
   }
 
   return {

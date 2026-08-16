@@ -3,7 +3,7 @@ import { Play, Sparkles, Trophy, Flame } from 'lucide-react';
 import { audio } from '../lib/audio';
 
 // Import generated splash artwork asset
-import splashArtImage from '../assets/images/water_sort_splash_art_1786861202827.jpg';
+import splashArtImage from '../assets/images/fruit_sort_splash_art_1786862070840.jpg';
 
 interface SplashScreenProps {
   onStartGame: () => void;
@@ -83,17 +83,17 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 
       {/* Center Content: Title Art & Bottle Graphic */}
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md my-auto relative z-10 text-center py-2">
-        {/* 3D Glossy Game Title Artwork (matching provided image exactly) */}
+        {/* 3D Glossy Game Title Artwork */}
         <div className="flex flex-col items-center justify-center mb-4 relative scale-95 sm:scale-105">
-          {/* Top Line 3D Glossy "WATER" or "FRUIT" text */}
+          {/* Top Line 3D Glossy "FRUIT" text */}
           <div className="relative">
             {/* 3D Extruded Deep Outline Layer */}
             <h1 className="text-5xl sm:text-6xl font-black tracking-wider uppercase text-[#221350] translate-y-1.5 translate-x-0.5 blur-[0.5px]">
-              WATER
+              FRUIT
             </h1>
             {/* Vibrant Cyan-Blue Glossy Top Text */}
-            <h1 className="absolute inset-0 text-5xl sm:text-6xl font-black tracking-wider uppercase bg-gradient-to-b from-cyan-200 via-sky-300 to-blue-500 bg-clip-text text-transparent drop-shadow-[0_4px_10px_rgba(14,165,233,0.6)]">
-              WATER
+            <h1 className="absolute inset-0 text-5xl sm:text-6xl font-black tracking-wider uppercase bg-gradient-to-b from-emerald-200 via-teal-300 to-cyan-500 bg-clip-text text-transparent drop-shadow-[0_4px_10px_rgba(20,184,166,0.6)]">
+              FRUIT
             </h1>
           </div>
 
@@ -110,23 +110,23 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           </div>
 
           {/* Subtitle Badge */}
-          <div className="mt-2 bg-slate-900/90 border border-sky-400/40 px-4 py-1 rounded-full shadow-[0_0_15px_rgba(56,189,248,0.3)] backdrop-blur-md">
-            <span className="text-xs sm:text-sm font-extrabold tracking-widest uppercase text-sky-200">
-              Color & Fruit Sort Game
+          <div className="mt-2 bg-slate-900/90 border border-emerald-400/40 px-4 py-1 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.3)] backdrop-blur-md">
+            <span className="text-xs sm:text-sm font-extrabold tracking-widest uppercase text-emerald-200">
+              Fruit Sort Game
             </span>
           </div>
         </div>
 
-        {/* Glossy Glass Test Tube Pouring Graphic */}
+        {/* Glossy Glass Test Tube Fruit Graphic */}
         <div className="relative w-64 h-64 sm:w-72 sm:h-72 my-2 flex items-center justify-center">
           {/* Glow backdrop ring */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500/20 to-amber-500/20 blur-2xl animate-pulse pointer-events-none" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-emerald-500/20 to-amber-500/20 blur-2xl animate-pulse pointer-events-none" />
 
           {/* Generated or Fallback Image Frame */}
-          <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-cyan-400/40 shadow-[0_0_40px_rgba(14,165,233,0.4)] bg-slate-950/80 backdrop-blur-md p-1 group">
+          <div className="relative w-full h-full rounded-3xl overflow-hidden border-2 border-emerald-400/40 shadow-[0_0_40px_rgba(16,185,129,0.4)] bg-slate-950/80 backdrop-blur-md p-1 group">
             <img
               src={splashArtImage}
-              alt="Water Sort Glass Bottles Graphic"
+              alt="Fruit Sort Glass Bottles Graphic"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover rounded-2xl filter brightness-105 contrast-105 transition-transform duration-700 group-hover:scale-105"
             />

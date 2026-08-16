@@ -20,6 +20,7 @@ import {
   FlaskConical,
   ExternalLink,
   Timer,
+  Shuffle,
 } from 'lucide-react';
 import { Basket, LevelConfig, MoveRecord, PlayerProfile } from '../types';
 import { BasketContainer } from './BasketContainer';
@@ -85,13 +86,39 @@ export const GameView: React.FC<GameViewProps> = ({
     requiredSeconds: number;
   } | null>(null);
 
+  // Retries tracking for free blank bottle grant on 3 retries
+  const [levelRetryCount, setLevelRetryCount] = useState<number>(0);
+  const [trackLevelNum, setTrackLevelNum] = useState<number>(levelConfig.levelNumber);
+
   const AD_URL = "https://www.effectivecpmnetwork.com/injygstv?key=58b512b8278fdb4d1fb08d6d0bad6c5e";
 
   const isGrandLevel = levelConfig.levelNumber % 5 === 0 || levelConfig.isChallenge;
+  const isHardLevel = isGrandLevel || levelConfig.isChallenge || levelConfig.levelNumber >= 41;
+
+  // Reset retry count when changing level number
+  useEffect(() => {
+    if (levelConfig.levelNumber !== trackLevelNum) {
+      setTrackLevelNum(levelConfig.levelNumber);
+      setLevelRetryCount(0);
+    }
+  }, [levelConfig.levelNumber, trackLevelNum]);
 
   // Re-initialize state when levelConfig changes
   useEffect(() => {
-    setBaskets(levelConfig.initialBaskets);
+    let initialBaskets = levelConfig.initialBaskets;
+    // After 3 retries, provide a free extra blank bottle automatically!
+    if (levelRetryCount >= 3) {
+      initialBaskets = [
+        ...initialBaskets,
+        {
+          id: `basket_retry_free_${Date.now()}`,
+          capacity: levelConfig.basketCapacity,
+          items: [],
+        },
+      ];
+    }
+
+    setBaskets(initialBaskets);
     setSelectedBasketIdx(null);
     setMoveHistory([]);
     setMovesCount(0);
@@ -99,7 +126,7 @@ export const GameView: React.FC<GameViewProps> = ({
     setFreeHintsRemaining(levelConfig.isChallenge ? 0 : 1);
     setAdsWatchedForExtraBasket(0);
     setHintMove(null);
-    setExtraBottlesAdded(0);
+    setExtraBottlesAdded(levelRetryCount >= 3 ? 1 : 0);
     setWrongMovesCount(0);
     setShowRestartToast(false);
     setIsWon(false);
@@ -118,12 +145,64 @@ export const GameView: React.FC<GameViewProps> = ({
     }
 
     // Announce level start with Voice
-    if (isGrandLevel) {
+    if (levelRetryCount >= 3) {
+      audio.speakVoice(`Level ${levelConfig.levelNumber}. Free extra blank bottle granted for 3 retries!`);
+    } else if (isGrandLevel) {
       audio.speakVoice(`Level ${levelConfig.levelNumber}. Super Hard Grand Level!`);
     } else {
       audio.speakVoice(`Level ${levelConfig.levelNumber}`);
     }
-  }, [levelConfig]);
+  }, [levelConfig, levelRetryCount]);
+
+  // Replay handler that increments retry count
+  const handleReplayCurrentLevel = () => {
+    const nextRetry = levelRetryCount + 1;
+    setLevelRetryCount(nextRetry);
+    onReplayLevel();
+  };
+
+  // Fruit Shuffle Button Handler (Hard Levels Only)
+  const handleFruitShuffle = () => {
+    if (isWon || showRestartToast) return;
+    audio.playClick();
+    setSelectedBasketIdx(null);
+    setHintMove(null);
+
+    // Collect all movable (non-frozen, non-locked) items
+    const itemSlots: { bIdx: number; iIdx: number }[] = [];
+    const itemsToShuffle: typeof baskets[0]['items'][0][] = [];
+
+    baskets.forEach((b, bIdx) => {
+      if (b.isLocked || b.isFrozenBasket) return;
+      b.items.forEach((item, iIdx) => {
+        if (!item.isFrozen && !item.isMystery) {
+          itemSlots.push({ bIdx, iIdx });
+          itemsToShuffle.push({ ...item });
+        }
+      });
+    });
+
+    if (itemsToShuffle.length <= 1) {
+      audio.playInvalid();
+      return;
+    }
+
+    // Shuffle items array
+    for (let i = itemsToShuffle.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [itemsToShuffle[i], itemsToShuffle[j]] = [itemsToShuffle[j], itemsToShuffle[i]];
+    }
+
+    // Assign back
+    const nextBaskets = baskets.map((b) => ({ ...b, items: [...b.items] }));
+    itemSlots.forEach((slot, idx) => {
+      nextBaskets[slot.bIdx].items[slot.iIdx] = itemsToShuffle[idx];
+    });
+
+    setBaskets(nextBaskets);
+    audio.playPlace();
+    audio.speakVoice("Fruits shuffled!");
+  };
 
   // Level Countdown Timer interval loop
   useEffect(() => {
@@ -369,7 +448,7 @@ export const GameView: React.FC<GameViewProps> = ({
         setShowRestartToast(true);
         audio.speakVoice("Three wrong moves! Level restarting...");
         setTimeout(() => {
-          onReplayLevel();
+          handleReplayCurrentLevel();
           setWrongMovesCount(0);
           setShowRestartToast(false);
         }, 1600);
@@ -698,6 +777,14 @@ export const GameView: React.FC<GameViewProps> = ({
         </div>
       </div>
 
+      {/* 3 Retries Bonus Notification Banner */}
+      {levelRetryCount >= 3 && (
+        <div className="w-full max-w-md bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 border border-emerald-300 text-white font-black text-xs py-1.5 px-3 rounded-full shadow-lg flex items-center justify-center gap-2 my-1 animate-pulse z-20">
+          <span>🎁</span>
+          <span>3 RETRIES BONUS: FREE BLANK BOTTLE GRANTED!</span>
+        </div>
+      )}
+
       {/* Main Baskets / Bottles Grid */}
       <div className="w-full max-w-2xl flex-1 flex items-center justify-center py-2 z-20">
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-5 place-items-center w-full">
@@ -768,12 +855,9 @@ export const GameView: React.FC<GameViewProps> = ({
           <span className="text-[10px] font-black text-pink-200 mt-1 uppercase tracking-wider">UNDO</span>
         </button>
 
-        {/* Restart / Shuffle Button */}
+        {/* Restart Button */}
         <button
-          onClick={() => {
-            audio.playClick();
-            onReplayLevel();
-          }}
+          onClick={handleReplayCurrentLevel}
           disabled={showRestartToast}
           className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90"
         >
@@ -859,6 +943,28 @@ export const GameView: React.FC<GameViewProps> = ({
           </span>
           <span className="text-[10px] font-black text-amber-200 mt-1 uppercase tracking-wider">HINT</span>
         </button>
+
+        {/* Fruit Shuffle Button (Available in Hard Levels Only) */}
+        {isHardLevel && (
+          <button
+            onClick={handleFruitShuffle}
+            disabled={isWon || showRestartToast}
+            className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90 disabled:opacity-40"
+            title="Shuffle Fruit Positions"
+          >
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-teal-600 via-emerald-500 to-cyan-400 p-0.5 shadow-[0_0_15px_rgba(20,184,166,0.5)] group-hover:scale-105 transition-all">
+              <div className="w-full h-full rounded-full bg-slate-900/90 flex items-center justify-center text-white border border-teal-400/30">
+                <Shuffle className="w-6 h-6 sm:w-7 sm:h-7 text-teal-300 animate-pulse" />
+              </div>
+            </div>
+            <span className="absolute -bottom-1 -right-1 bg-teal-400 text-teal-950 text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-slate-900 shadow-md">
+              HARD
+            </span>
+            <span className="text-[10px] font-black text-teal-200 mt-1 uppercase tracking-wider">
+              SHUFFLE
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Level Complete Win Modal */}
@@ -935,7 +1041,7 @@ export const GameView: React.FC<GameViewProps> = ({
                 <button
                   onClick={() => {
                     audio.playClick();
-                    onReplayLevel();
+                    handleReplayCurrentLevel();
                   }}
                   className="py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl text-slate-200 transition-colors cursor-pointer border border-slate-700"
                 >
@@ -998,7 +1104,7 @@ export const GameView: React.FC<GameViewProps> = ({
               <button
                 onClick={() => {
                   audio.playClick();
-                  onReplayLevel();
+                  handleReplayCurrentLevel();
                   setIsTimeUp(false);
                 }}
                 className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-xs font-extrabold rounded-xl text-slate-200 transition-colors cursor-pointer border border-slate-700 uppercase"
