@@ -266,7 +266,7 @@ export const GameView: React.FC<GameViewProps> = ({
     }
   };
 
-  // Handle Puzzle Solved Win
+  // Handle Puzzle Solved Win - Directly Shows Interstitial Ad Modal
   const handleWin = (finalMoves: number, hints: number, finalBaskets: Basket[]) => {
     setIsWon(true);
     audio.playLevelWin();
@@ -342,6 +342,9 @@ export const GameView: React.FC<GameViewProps> = ({
     };
 
     onSaveProgress(updatedProfile);
+
+    // DIRECTLY open High-CPM Financial Interstitial Ad Modal upon completion!
+    handleProceedToAd();
   };
 
   // Undo previous move
@@ -739,50 +742,74 @@ export const GameView: React.FC<GameViewProps> = ({
         </div>
       )}
 
-      {/* Interstitial Ad Modal (Triggers between levels) */}
+      {/* Interstitial High-CPM Financial Ad Modal (Triggers directly between levels) */}
       {showAdModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-[#1C2541] to-[#0B132B] border-2 border-amber-400/50 rounded-3xl w-full max-w-md p-6 text-white shadow-2xl text-center relative overflow-hidden flex flex-col items-center">
-            {/* Top Sponsor Pill */}
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-black uppercase tracking-widest mb-4">
-              <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
-              <span>SPONSORED INTERSTITIAL AD</span>
+        <div className="fixed inset-0 z-50 bg-slate-950/92 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+          <div className="bg-gradient-to-b from-[#1E1B4B] via-[#0F172A] to-[#0B132B] border-2 border-amber-400/70 rounded-3xl w-full max-w-md p-5 sm:p-6 text-white shadow-[0_0_40px_rgba(245,158,11,0.3)] text-center relative overflow-hidden flex flex-col items-center">
+            {/* Level Victory Header inside Ad Modal */}
+            {winStats && (
+              <div className="w-full bg-slate-900/80 border border-amber-400/30 rounded-2xl p-2.5 mb-3 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-black text-amber-300">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  <span>LEVEL {levelConfig.levelNumber} COMPLETE!</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3].map((s) => (
+                    <Star
+                      key={s}
+                      className={`w-3.5 h-3.5 ${
+                        s <= winStats.stars ? 'fill-amber-400 text-amber-400' : 'text-slate-700'
+                      }`}
+                    />
+                  ))}
+                  <span className="font-bold text-emerald-400 ml-1">+{winStats.earnedScore} pts</span>
+                </div>
+              </div>
+            )}
+
+            {/* Top High CPM Financial Network Pill */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-3">
+              <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>💎 HIGH-CPM FINANCIAL NETWORK SPONSOR 💎</span>
             </div>
 
-            {/* Ad Banner Content Frame */}
-            <div className="w-full bg-slate-900/90 border border-slate-700 rounded-2xl p-4 my-2 flex flex-col items-center gap-3 shadow-inner">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-500 via-amber-400 to-purple-600 p-0.5 shadow-[0_0_20px_rgba(244,63,94,0.6)] flex items-center justify-center">
-                <span className="text-3xl">🎁</span>
+            {/* Financial Ad Banner Frame */}
+            <div className="w-full bg-slate-900/90 border border-emerald-500/40 rounded-2xl p-4 my-1 flex flex-col items-center gap-3 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative overflow-hidden">
+              <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
+
+              {/* Financial/Trading Icon Badge */}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-400 p-0.5 shadow-[0_0_25px_rgba(16,185,129,0.5)] flex items-center justify-center">
+                <span className="text-2xl sm:text-3xl">📈</span>
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-base font-black text-amber-300 tracking-wide uppercase">
-                  SPECIAL SPONSOR BONUS
+                <h3 className="text-xs sm:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-teal-200 tracking-wide uppercase">
+                  EXCLUSIVE FINANCIAL & WEALTH OFFER
                 </h3>
-                <p className="text-xs text-slate-300 font-medium leading-relaxed max-w-xs">
-                  Visit our official network sponsor to support Fruit Sort & unlock bonus level rewards!
+                <p className="text-[11px] sm:text-xs text-slate-300 font-medium leading-relaxed max-w-xs">
+                  Unlock high-yield trading signals, forex insights & claim up to <span className="text-emerald-400 font-bold">$500 sponsor bonus credits</span>!
                 </p>
               </div>
 
-              {/* Direct Link Action Button */}
+              {/* High CPM Action Button linking to sponsor URL */}
               <button
                 onClick={handleVisitAdLink}
-                className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border border-amber-200 hover:scale-102"
+                className="w-full py-3 px-3 sm:px-4 bg-gradient-to-r from-amber-400 via-emerald-400 to-teal-400 hover:from-amber-300 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm rounded-xl transition-all shadow-[0_0_20px_rgba(251,191,36,0.6)] flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer border border-amber-200 hover:scale-102"
               >
-                <span>🔥 VISIT SPONSOR AD LINK 🔥</span>
+                <span>🔥 VISIT FINANCIAL SPONSOR 🔥</span>
                 <ExternalLink className="w-4 h-4 text-slate-950 stroke-[3]" />
               </button>
             </div>
 
             {/* Countdown / Skip Button */}
-            <div className="w-full mt-4 space-y-2">
+            <div className="w-full mt-3 space-y-2">
               <button
                 onClick={handleCompleteAdAndNextLevel}
                 disabled={adTimer > 0}
-                className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
+                className={`w-full py-3 sm:py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
                   adTimer > 0
                     ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg border border-emerald-300/40'
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] border border-emerald-300/40'
                 }`}
               >
                 {adTimer > 0 ? (
@@ -790,7 +817,7 @@ export const GameView: React.FC<GameViewProps> = ({
                 ) : (
                   <>
                     <span>SKIP AD & PLAY NEXT LEVEL</span>
-                    <ArrowRight className="w-5 h-5" />
+                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </>
                 )}
               </button>
