@@ -1,0 +1,6 @@
+{
+  "name": "Fruit Sort",
+  "description": "Sort the fruits. Fill the baskets. Master the puzzle. An addictive fruit sorting puzzle game with procedural levels.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
