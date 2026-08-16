@@ -35,19 +35,26 @@ export const FruitRenderer: React.FC<FruitRendererProps> = ({
   return (
     <div
       className={`relative flex flex-col items-center justify-center transition-all duration-200 ${
-        isSelected ? '-translate-y-2 scale-110' : ''
+        isSelected ? '-translate-y-3 scale-125 z-30' : ''
       }`}
     >
       <div
-        className={`relative rounded-full flex items-center justify-center select-none shadow-md ${sizeClasses}`}
+        className={`relative rounded-full flex items-center justify-center select-none ${sizeClasses} transition-all duration-200`}
         style={{
-          background: `radial-gradient(circle at 35% 35%, ${fruit.primaryColor}, ${fruit.secondaryColor})`,
-          border: `2px solid ${fruit.borderColor}`,
+          background: isSelected
+            ? `radial-gradient(circle at 35% 35%, #FEF08A, ${fruit.primaryColor})`
+            : `radial-gradient(circle at 35% 35%, ${fruit.primaryColor}, ${fruit.secondaryColor})`,
+          border: isSelected ? `3px solid #FACC15` : `2px solid ${fruit.borderColor}`,
           boxShadow: isSelected
-            ? `0 0 16px ${fruit.glowColor}, 0 4px 12px rgba(0,0,0,0.4)`
+            ? `0 0 25px #FACC15, 0 0 15px ${fruit.glowColor}, 0 6px 16px rgba(0,0,0,0.5)`
             : `0 3px 6px rgba(0,0,0,0.3)`,
         }}
       >
+        {/* Selected Active Glow Halo Ring */}
+        {isSelected && (
+          <div className="absolute -inset-1 rounded-full border-2 border-yellow-300 animate-ping opacity-75 pointer-events-none" />
+        )}
+
         {/* Glossy Top Highlight */}
         <div className="absolute top-1 left-2 w-1/3 h-1/3 rounded-full bg-white/40 blur-[1px] pointer-events-none" />
 

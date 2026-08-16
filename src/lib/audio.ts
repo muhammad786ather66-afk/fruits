@@ -37,6 +37,28 @@ class SoundEngine {
     }
   }
 
+  // Ensure AudioContext is active and background music is playing on user gesture
+  public ensureMusicPlaying() {
+    this.initCtx();
+    if (this.isMusicOn) {
+      this.startMusic();
+    }
+  }
+
+  public toggleMusic(): boolean {
+    this.isMusicOn = !this.isMusicOn;
+    if (this.isMusicOn) {
+      this.startMusic();
+    } else {
+      this.stopMusic();
+    }
+    return this.isMusicOn;
+  }
+
+  public getIsMusicOn(): boolean {
+    return this.isMusicOn;
+  }
+
   public vibrate(ms: number | number[] = 30) {
     if (this.isVibrationOn && typeof navigator !== 'undefined' && (navigator as unknown as { vibrate: (pattern: unknown) => boolean }).vibrate) {
       try {
@@ -277,6 +299,7 @@ class SoundEngine {
   // Soft pleasant ambient music loop generator
   public startMusic() {
     if (!this.isMusicOn || this.musicInterval !== null) return;
+    this.initCtx();
 
     // Gentle relaxing pentatonic progression
     const melodies = [
@@ -287,7 +310,8 @@ class SoundEngine {
     ];
 
     let step = 0;
-    this.musicInterval = window.setInterval(() => {
+
+    const playStep = () => {
       if (!this.isMusicOn) return;
       this.initCtx();
       if (!this.ctx) return;
@@ -301,20 +325,25 @@ class SoundEngine {
         const gain = this.ctx.createGain();
 
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(note, now + i * 0.2);
+        osc.frequency.setValueAtTime(note, now + i * 0.22);
 
-        gain.gain.setValueAtTime(0.02, now + i * 0.2);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.2 + 2.5);
+        gain.gain.setValueAtTime(0.035, now + i * 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.22 + 2.2);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
-        osc.start(now + i * 0.2);
-        osc.stop(now + i * 0.2 + 2.5);
+        osc.start(now + i * 0.22);
+        osc.stop(now + i * 0.22 + 2.2);
       });
 
       step++;
-    }, 4000);
+    };
+
+    // Play immediate first chord
+    playStep();
+
+    this.musicInterval = window.setInterval(playStep, 3500);
   }
 
   public stopMusic() {

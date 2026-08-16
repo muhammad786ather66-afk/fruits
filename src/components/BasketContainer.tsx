@@ -66,27 +66,27 @@ export const BasketContainer: React.FC<BasketContainerProps> = ({
 
       {/* Basket/Bottle Top Cork & Rim */}
       <div
-        className={`w-14 sm:w-18 md:w-20 h-3.5 sm:h-4 rounded-t-lg border-t-2 border-x-2 ${basketBorderClass} ${
+        className={`w-14 sm:w-18 md:w-20 h-3.5 sm:h-4 rounded-t-lg border-t-2 border-x-2 transition-all duration-200 z-10 ${
           isSelected
-            ? 'bg-[#5F6F52] border-[#3A4730] ring-2 ring-[#5F6F52]/80'
+            ? 'bg-amber-400 border-amber-200 text-amber-950 shadow-[0_0_15px_rgba(251,191,36,0.9)]'
             : isValidDestination
-            ? 'bg-[#86A789] border-[#5F6F52] ring-2 ring-[#86A789]/80 animate-pulse'
+            ? 'bg-cyan-400 border-cyan-200 ring-2 ring-cyan-300 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.9)]'
             : isCompleted
-            ? 'bg-[#5F6F52] border-[#3A4730]'
-            : rimBgClass
-        } transition-all duration-200 z-10 shadow-xs`}
+            ? 'bg-emerald-500 border-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.8)]'
+            : `${basketBorderClass} ${rimBgClass}`
+        }`}
       />
 
       {/* Main Bottle Body / Stack Tube */}
       <div
-        className={`relative w-14 sm:w-18 md:w-20 ${containerHeightClass} rounded-b-xl border-b-2 border-x-2 ${basketBorderClass} ${basketBgClass} backdrop-blur-xs flex flex-col-reverse items-center justify-start p-1 gap-1 sm:gap-1.5 shadow-inner transition-all duration-200 overflow-hidden ${
+        className={`relative w-14 sm:w-18 md:w-20 ${containerHeightClass} rounded-b-xl border-b-2 border-x-2 backdrop-blur-md flex flex-col-reverse items-center justify-start p-1 gap-1 sm:gap-1.5 shadow-inner transition-all duration-200 overflow-hidden ${
           isSelected
-            ? 'ring-4 ring-[#5F6F52]/70 shadow-[0_0_15px_rgba(95,111,82,0.3)]'
+            ? 'bg-gradient-to-b from-amber-500/40 via-amber-400/25 to-yellow-500/40 border-amber-300 ring-4 ring-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.8)]'
             : isValidDestination
-            ? 'ring-4 ring-[#86A789]/80 shadow-[0_0_15px_rgba(134,167,137,0.4)]'
+            ? 'bg-gradient-to-b from-cyan-500/30 via-emerald-400/20 to-cyan-600/30 border-cyan-300 ring-4 ring-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.8)] animate-pulse'
             : isCompleted
-            ? 'ring-2 ring-[#5F6F52]/60'
-            : ''
+            ? 'bg-gradient-to-b from-emerald-500/30 via-teal-400/20 to-emerald-600/30 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.7)]'
+            : `${basketBorderClass} ${basketBgClass}`
         }`}
       >
         {/* Background Empty Slots */}

@@ -36,7 +36,7 @@ export default function App() {
 
   // Settings State
   const [soundOn, setSoundOn] = useState(true);
-  const [musicOn, setMusicOn] = useState(false);
+  const [musicOn, setMusicOn] = useState(true);
   const [vibrationOn, setVibrationOn] = useState(true);
 
   // Current Active Level Config
@@ -173,8 +173,10 @@ export default function App() {
       <Header
         player={activeProfile}
         activeScreen={activeScreen}
+        musicOn={musicOn}
         onNavigate={(screen) => setActiveScreen(screen)}
         onOpenProfiles={() => setIsProfileModalOpen(true)}
+        onToggleMusic={() => setMusicOn((prev) => !prev)}
       />
 
       {/* Main Game Screen */}

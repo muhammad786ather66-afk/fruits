@@ -13,21 +13,27 @@ import {
   HelpCircle,
   Palette,
   Award,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { ActiveScreen, PlayerProfile } from '../types';
 
 interface HeaderProps {
   player: PlayerProfile | null;
   activeScreen: ActiveScreen;
+  musicOn?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
   onOpenProfiles: () => void;
+  onToggleMusic?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   player,
   activeScreen,
+  musicOn = true,
   onNavigate,
   onOpenProfiles,
+  onToggleMusic,
 }) => {
   return (
     <header className="w-full bg-[#F7F9F2] border-b border-[#E0E2D9] px-3 py-2 sticky top-0 z-40 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-[#4A4941] shadow-xs">
@@ -127,6 +133,20 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Trophy className="w-4 h-4" />
         </button>
+
+        {onToggleMusic && (
+          <button
+            onClick={onToggleMusic}
+            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+              musicOn
+                ? 'bg-amber-500 text-white font-bold shadow-xs animate-pulse'
+                : 'text-[#4A4941] hover:bg-[#E9EDC9]/50 opacity-60'
+            }`}
+            title={musicOn ? 'Mute Background Music' : 'Play Background Music'}
+          >
+            {musicOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+        )}
 
         <button
           onClick={() => onNavigate('settings')}

@@ -113,8 +113,20 @@ export const GameView: React.FC<GameViewProps> = ({
     return () => clearInterval(interval);
   }, [isWon, isAutoPaused, onNextLevel]);
 
+  // Max extra bottles allowed dynamically scaled according to level complexity
+  const getMaxExtraBottlesForLevel = (lvlNum: number, isChallenge?: boolean): number => {
+    if (lvlNum <= 5) return 0; // Beginning levels (Level 1-5): NO extra bottles at start!
+    if (isChallenge) return 0; // Grand Challenge levels: NO extra bottles allowed!
+    if (lvlNum <= 15) return 2; // Mid levels: 2 extra bottles
+    if (lvlNum <= 30) return 1; // Higher levels: reduced extra bottles (only 1)
+    return 1; // High complexity levels: strictly max 1 extra bottle!
+  };
+
+  const maxAllowedExtra = getMaxExtraBottlesForLevel(levelConfig.levelNumber, levelConfig.isChallenge);
+
   // Handle basket selection and fruit movement
   const handleSelectBasket = (targetIdx: number) => {
+    audio.ensureMusicPlaying();
     if (isWon || showRestartToast) return;
     setHintMove(null);
 
@@ -277,6 +289,7 @@ export const GameView: React.FC<GameViewProps> = ({
 
   // Undo previous move
   const handleUndo = () => {
+    audio.ensureMusicPlaying();
     if (moveHistory.length === 0 || isWon || showRestartToast) return;
     audio.playUndo();
 
@@ -308,6 +321,7 @@ export const GameView: React.FC<GameViewProps> = ({
 
   // Run Solver for Hint
   const handleHint = () => {
+    audio.ensureMusicPlaying();
     if (isWon || showRestartToast) return;
     audio.playHint();
     setHintsUsed((prev) => prev + 1);
@@ -322,9 +336,29 @@ export const GameView: React.FC<GameViewProps> = ({
     }
   };
 
-  // Add Extra Bottle feature
+  // Add Extra Bottle feature with strict level-based complexity rules
   const handleAddBottle = () => {
-    if (isWon || extraBottlesAdded >= 2 || showRestartToast) return;
+    audio.ensureMusicPlaying();
+    if (isWon || showRestartToast) return;
+
+    if (levelConfig.levelNumber <= 5) {
+      audio.playInvalid();
+      audio.speakVoice("No extra bottles in beginning levels! Unlocks at Level 6.");
+      return;
+    }
+
+    if (levelConfig.isChallenge) {
+      audio.playInvalid();
+      audio.speakVoice("No extra bottles on Grand Challenge levels!");
+      return;
+    }
+
+    if (extraBottlesAdded >= maxAllowedExtra) {
+      audio.playInvalid();
+      audio.speakVoice(`Maximum ${maxAllowedExtra} extra bottle allowed for this level!`);
+      return;
+    }
+
     audio.playClick();
     setExtraBottlesAdded((prev) => prev + 1);
     setBaskets((prev) => [
@@ -494,18 +528,38 @@ export const GameView: React.FC<GameViewProps> = ({
         {/* Add Extra Bottle Button */}
         <button
           onClick={handleAddBottle}
-          disabled={isWon || extraBottlesAdded >= 2 || showRestartToast}
-          className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90 disabled:opacity-40"
+          disabled={isWon || showRestartToast}
+          className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90"
         >
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-fuchsia-700 via-purple-600 to-indigo-500 p-0.5 shadow-[0_0_15px_rgba(192,38,211,0.5)] group-hover:scale-105 transition-all">
+          <div
+            className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full ${
+              maxAllowedExtra === 0 || extraBottlesAdded >= maxAllowedExtra
+                ? 'bg-gradient-to-tr from-slate-700 via-slate-800 to-slate-700'
+                : 'bg-gradient-to-tr from-fuchsia-700 via-purple-600 to-indigo-500 shadow-[0_0_15px_rgba(192,38,211,0.5)]'
+            } p-0.5 group-hover:scale-105 transition-all`}
+          >
             <div className="w-full h-full rounded-full bg-slate-900/90 flex items-center justify-center text-white border border-fuchsia-400/30">
-              <FlaskConical className="w-6 h-6 sm:w-7 sm:h-7 text-fuchsia-300" />
+              <FlaskConical
+                className={`w-6 h-6 sm:w-7 sm:h-7 ${
+                  maxAllowedExtra === 0 ? 'text-slate-500' : 'text-fuchsia-300'
+                }`}
+              />
             </div>
           </div>
-          <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 text-xs font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-md">
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+          <span
+            className={`absolute -bottom-1 -right-1 ${
+              maxAllowedExtra === 0
+                ? 'bg-rose-600 text-white'
+                : extraBottlesAdded >= maxAllowedExtra
+                ? 'bg-amber-600 text-white'
+                : 'bg-emerald-500 text-slate-950'
+            } text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-slate-900 shadow-md`}
+          >
+            {levelConfig.levelNumber <= 5 ? 'Lvl 6+' : `${extraBottlesAdded}/${maxAllowedExtra}`}
           </span>
-          <span className="text-[10px] font-black text-fuchsia-200 mt-1 uppercase tracking-wider">+TUBE</span>
+          <span className="text-[10px] font-black text-fuchsia-200 mt-1 uppercase tracking-wider">
+            +TUBE
+          </span>
         </button>
 
         {/* Hint Button */}
