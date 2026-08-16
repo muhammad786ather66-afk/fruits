@@ -257,15 +257,33 @@ class SoundEngine {
     osc.stop(now + 0.18);
   }
 
-  // Soft ambient music loop generator
+  // Voice announcements using SpeechSynthesis API
+  public speakVoice(text: string) {
+    if (!this.isSoundOn) return;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel(); // Cancel ongoing speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.05;
+        utterance.pitch = 1.1;
+        utterance.volume = 0.9;
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // Soft pleasant ambient music loop generator
   public startMusic() {
     if (!this.isMusicOn || this.musicInterval !== null) return;
 
-    const chords = [
-      [261.63, 329.63, 392.0], // C major
-      [220.0, 261.63, 329.63], // A minor
-      [174.61, 220.0, 261.63], // F major
-      [196.0, 246.94, 293.66], // G major
+    // Gentle relaxing pentatonic progression
+    const melodies = [
+      [261.63, 329.63, 392.00, 523.25], // C - E - G - C5
+      [220.00, 261.63, 329.63, 440.00], // A - C - E - A4
+      [174.61, 220.00, 261.63, 349.23], // F - A - C - F4
+      [196.00, 246.94, 293.66, 392.00], // G - B - D - G4
     ];
 
     let step = 0;
@@ -274,7 +292,7 @@ class SoundEngine {
       this.initCtx();
       if (!this.ctx) return;
 
-      const chord = chords[step % chords.length];
+      const chord = melodies[step % melodies.length];
       const now = this.ctx.currentTime;
 
       chord.forEach((note, i) => {
@@ -283,20 +301,20 @@ class SoundEngine {
         const gain = this.ctx.createGain();
 
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(note, now + i * 0.15);
+        osc.frequency.setValueAtTime(note, now + i * 0.2);
 
-        gain.gain.setValueAtTime(0.015, now + i * 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.15 + 2.0);
+        gain.gain.setValueAtTime(0.02, now + i * 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.2 + 2.5);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
-        osc.start(now + i * 0.15);
-        osc.stop(now + i * 0.15 + 2.0);
+        osc.start(now + i * 0.2);
+        osc.stop(now + i * 0.2 + 2.5);
       });
 
       step++;
-    }, 4500);
+    }, 4000);
   }
 
   public stopMusic() {

@@ -13,6 +13,11 @@ import {
   Trophy,
   ArrowRight,
   Zap,
+  Plus,
+  Palette,
+  Settings,
+  AlertTriangle,
+  FlaskConical,
 } from 'lucide-react';
 import { Basket, LevelConfig, MoveRecord, PlayerProfile } from '../types';
 import { BasketContainer } from './BasketContainer';
@@ -48,12 +53,20 @@ export const GameView: React.FC<GameViewProps> = ({
   const [movesCount, setMovesCount] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintMove, setHintMove] = useState<{ from: number; to: number } | null>(null);
+  const [extraBottlesAdded, setExtraBottlesAdded] = useState(0);
+
+  // 3 Wrong Moves tracking
+  const [wrongMovesCount, setWrongMovesCount] = useState<number>(0);
+  const [showRestartToast, setShowRestartToast] = useState<boolean>(false);
+
   const [isWon, setIsWon] = useState(false);
   const [winStats, setWinStats] = useState<{ stars: number; earnedScore: number } | null>(null);
 
   // Auto-advance timer (seconds countdown)
   const [autoAdvanceTimer, setAutoAdvanceTimer] = useState<number | null>(null);
   const [isAutoPaused, setIsAutoPaused] = useState(false);
+
+  const isGrandLevel = levelConfig.levelNumber % 5 === 0 || levelConfig.isChallenge;
 
   // Re-initialize state when levelConfig changes
   useEffect(() => {
@@ -63,10 +76,20 @@ export const GameView: React.FC<GameViewProps> = ({
     setMovesCount(0);
     setHintsUsed(0);
     setHintMove(null);
+    setExtraBottlesAdded(0);
+    setWrongMovesCount(0);
+    setShowRestartToast(false);
     setIsWon(false);
     setWinStats(null);
     setAutoAdvanceTimer(null);
     setIsAutoPaused(false);
+
+    // Announce level start with Voice
+    if (isGrandLevel) {
+      audio.speakVoice(`Level ${levelConfig.levelNumber}. Super Hard Grand Level!`);
+    } else {
+      audio.speakVoice(`Level ${levelConfig.levelNumber}`);
+    }
   }, [levelConfig]);
 
   // Handle automatic progression to next level on win
@@ -92,7 +115,7 @@ export const GameView: React.FC<GameViewProps> = ({
 
   // Handle basket selection and fruit movement
   const handleSelectBasket = (targetIdx: number) => {
-    if (isWon) return;
+    if (isWon || showRestartToast) return;
     setHintMove(null);
 
     // Case 1: No basket currently selected
@@ -137,6 +160,7 @@ export const GameView: React.FC<GameViewProps> = ({
       setBaskets(nextBaskets);
       setSelectedBasketIdx(null);
       setMovesCount(newMovesCount);
+      setWrongMovesCount(0); // reset error streak on valid move
       audio.playPlace();
 
       // Check if destination basket completed
@@ -153,8 +177,23 @@ export const GameView: React.FC<GameViewProps> = ({
         handleWin(newMovesCount, hintsUsed, nextBaskets);
       }
     } else {
+      // INVALID MOVE ATTEMPT
+      const newWrongCount = wrongMovesCount + 1;
+      setWrongMovesCount(newWrongCount);
       audio.playInvalid();
       setSelectedBasketIdx(null);
+
+      if (newWrongCount >= 3) {
+        setShowRestartToast(true);
+        audio.speakVoice("Three wrong moves! Level restarting...");
+        setTimeout(() => {
+          onReplayLevel();
+          setWrongMovesCount(0);
+          setShowRestartToast(false);
+        }, 1600);
+      } else {
+        audio.speakVoice(`Wrong move! ${newWrongCount} of 3`);
+      }
     }
   };
 
@@ -162,6 +201,7 @@ export const GameView: React.FC<GameViewProps> = ({
   const handleWin = (finalMoves: number, hints: number, finalBaskets: Basket[]) => {
     setIsWon(true);
     audio.playLevelWin();
+    audio.speakVoice("Level Complete! Puzzle Solved!");
 
     // Fire Celebratory Confetti Burst using level-specific bottle theme colors
     try {
@@ -237,7 +277,7 @@ export const GameView: React.FC<GameViewProps> = ({
 
   // Undo previous move
   const handleUndo = () => {
-    if (moveHistory.length === 0 || isWon) return;
+    if (moveHistory.length === 0 || isWon || showRestartToast) return;
     audio.playUndo();
 
     const lastMove = moveHistory[moveHistory.length - 1];
@@ -268,7 +308,7 @@ export const GameView: React.FC<GameViewProps> = ({
 
   // Run Solver for Hint
   const handleHint = () => {
-    if (isWon) return;
+    if (isWon || showRestartToast) return;
     audio.playHint();
     setHintsUsed((prev) => prev + 1);
 
@@ -278,71 +318,111 @@ export const GameView: React.FC<GameViewProps> = ({
         from: solverResult.nextBestMove.fromIndex,
         to: solverResult.nextBestMove.toIndex,
       });
+      audio.speakVoice("Hint provided!");
     }
   };
 
+  // Add Extra Bottle feature
+  const handleAddBottle = () => {
+    if (isWon || extraBottlesAdded >= 2 || showRestartToast) return;
+    audio.playClick();
+    setExtraBottlesAdded((prev) => prev + 1);
+    setBaskets((prev) => [
+      ...prev,
+      {
+        id: `basket_extra_${Date.now()}`,
+        capacity: levelConfig.basketCapacity,
+        items: [],
+      },
+    ]);
+    audio.speakVoice("Extra bottle added!");
+  };
+
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-between p-2 sm:p-3 bg-[#F7F9F2] text-[#4A4941] min-h-[calc(100vh-52px)]">
-      {/* Top Level Status Header */}
-      <div className="w-full max-w-xl bg-white border border-[#E0E2D9] rounded-2xl p-2.5 sm:p-3 flex items-center justify-between shadow-xs mb-2 sm:mb-3">
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${bottleTheme.accentBadgeBg} ${bottleTheme.accentText} border border-[#86A789]/30 flex flex-col items-center justify-center font-black text-xs sm:text-sm shadow-xs shrink-0`}>
-            <span className="text-[9px] sm:text-[10px] leading-tight">LVL</span>
-            <span className="text-sm sm:text-base leading-none">{levelConfig.levelNumber}</span>
-          </div>
+    <div className="w-full flex-1 flex flex-col items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-[#0B132B] via-[#1C2541] to-[#0B132B] text-white min-h-[calc(100vh-52px)] relative overflow-hidden select-none">
+      {/* Background Palm Trees / Tropical Sunset Backdrop matching user photo */}
+      <div className="absolute inset-x-0 bottom-0 h-36 opacity-20 pointer-events-none flex items-end justify-between px-4">
+        <div className="w-28 h-28 bg-emerald-500/20 rounded-full blur-2xl" />
+        <div className="w-36 h-36 bg-indigo-500/20 rounded-full blur-3xl" />
+        <div className="w-28 h-28 bg-pink-500/20 rounded-full blur-2xl" />
+      </div>
+
+      {/* 3 Wrong Moves Restarting Alert Toast */}
+      {showRestartToast && (
+        <div className="absolute top-16 z-50 bg-rose-600 text-white font-black px-5 py-3 rounded-2xl shadow-2xl border-2 border-rose-300 flex items-center gap-3 animate-bounce">
+          <AlertTriangle className="w-6 h-6 text-yellow-300" />
           <div className="flex flex-col">
-            <h2 className="text-xs sm:text-sm font-black tracking-tight text-[#4A4941] flex items-center gap-1.5">
-              <span>LEVEL {levelConfig.levelNumber}</span>
-              {levelConfig.isChallenge && (
-                <span className="text-[9px] bg-[#5F6F52] text-white font-black px-1.5 py-0.2 rounded-full uppercase">
-                  CHALLENGE
-                </span>
-              )}
-            </h2>
-            <span className="text-[10px] sm:text-[11px] text-[#9A9B8F] font-semibold">
-              Target: {levelConfig.maxMovesTarget} moves
-            </span>
+            <span className="text-sm tracking-wider uppercase">3 WRONG MOVES!</span>
+            <span className="text-xs font-bold text-rose-100">Restarting Level...</span>
           </div>
         </div>
+      )}
 
-        {/* Moves & Stars */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex flex-col items-end">
-            <span className="text-[9px] sm:text-[10px] text-[#9A9B8F] font-bold uppercase tracking-wider">
-              MOVES
-            </span>
-            <span className="text-base sm:text-xl font-black text-[#5F6F52]">
-              {movesCount}
+      {/* Top Banner Pill Badge (Exact screenshot styling) */}
+      <div className="w-full max-w-xl flex items-center justify-between z-20 pt-1">
+        {/* Left Level Select Button */}
+        <button
+          onClick={() => {
+            audio.playClick();
+            onOpenLevelSelect();
+          }}
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-amber-400 border-2 border-amber-200 text-amber-950 flex items-center justify-center shadow-[0_0_12px_rgba(251,191,36,0.5)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          title="Select Level"
+        >
+          <Zap className="w-5 h-5 fill-current" />
+        </button>
+
+        {/* Center Level Banner Pill Badge */}
+        <div className="flex flex-col items-center">
+          <div className="bg-gradient-to-r from-rose-600 via-red-500 to-rose-600 border-2 border-rose-300 px-5 sm:px-6 py-1 sm:py-1.5 rounded-full shadow-[0_0_20px_rgba(225,29,72,0.6)] flex items-center justify-center">
+            <span className="text-sm sm:text-base font-black text-white tracking-wide uppercase drop-shadow-md">
+              Level {levelConfig.levelNumber}
             </span>
           </div>
+          {isGrandLevel && (
+            <div className="mt-1 bg-red-600 text-white font-black text-[9px] sm:text-[10px] uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md border border-red-300 animate-pulse">
+              🔥 SUPER HARD - GRAND PUZZLE 🔥
+            </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-0.5">
-            {[1, 2, 3].map((s) => {
-              const targetForStars =
-                s === 3
-                  ? levelConfig.maxMovesTarget
-                  : s === 2
-                  ? Math.ceil(levelConfig.maxMovesTarget * 1.4)
-                  : 999;
-              const hasStar = movesCount <= targetForStars;
+        {/* Right Restart Level Button */}
+        <button
+          onClick={() => {
+            audio.playClick();
+            onReplayLevel();
+          }}
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-purple-500 border-2 border-purple-200 text-white flex items-center justify-center shadow-[0_0_12px_rgba(168,85,247,0.5)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          title="Restart Level"
+        >
+          <RefreshCw className="w-5 h-5" />
+        </button>
+      </div>
 
-              return (
-                <Star
-                  key={s}
-                  className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                    hasStar
-                      ? 'fill-[#86A789] text-[#86A789]'
-                      : 'text-[#E0E2D9]'
-                  }`}
-                />
-              );
-            })}
-          </div>
+      {/* Middle Status Info: Target Moves & Wrong Moves Tracker */}
+      <div className="w-full max-w-xl flex items-center justify-between text-xs font-bold text-slate-300 px-3 my-1.5 z-20">
+        <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-700/80 px-3 py-1 rounded-full backdrop-blur-md">
+          <span className="text-slate-400 uppercase text-[10px]">MOVES:</span>
+          <span className="text-amber-400 font-black text-sm">{movesCount}</span>
+          <span className="text-slate-500 text-[10px]">/ {levelConfig.maxMovesTarget}</span>
+        </div>
+
+        {/* Wrong Moves Warning Indicators */}
+        <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-700/80 px-3 py-1 rounded-full backdrop-blur-md">
+          <span className="text-slate-400 uppercase text-[10px]">ERRORS:</span>
+          {[1, 2, 3].map((num) => (
+            <span
+              key={num}
+              className={`w-2.5 h-2.5 rounded-full ${
+                wrongMovesCount >= num ? 'bg-rose-500 ring-2 ring-rose-300' : 'bg-slate-700'
+              } transition-all`}
+            />
+          ))}
         </div>
       </div>
 
       {/* Main Baskets / Bottles Grid */}
-      <div className="w-full max-w-2xl flex-1 flex items-center justify-center py-3">
+      <div className="w-full max-w-2xl flex-1 flex items-center justify-center py-2 z-20">
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-5 place-items-center w-full">
           {baskets.map((b, idx) => {
             const isSelected = selectedBasketIdx === idx;
@@ -371,62 +451,94 @@ export const GameView: React.FC<GameViewProps> = ({
         </div>
       </div>
 
-      {/* Bottom Control Toolbar */}
-      <div className="w-full max-w-md bg-white border border-[#E0E2D9] rounded-2xl p-2.5 flex items-center justify-around shadow-sm mt-2 z-20">
+      {/* Bottom Control Toolbar - Vibrant 3D Circular Buttons matching user photo */}
+      <div className="w-full max-w-md flex items-center justify-around py-2 z-30">
+        {/* Undo Button */}
         <button
           onClick={handleUndo}
-          disabled={moveHistory.length === 0 || isWon}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] disabled:opacity-30 text-[#4A4941] transition-all active:scale-95 cursor-pointer"
+          disabled={moveHistory.length === 0 || isWon || showRestartToast}
+          className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90 disabled:opacity-40"
         >
-          <RotateCcw className="w-5 h-5 text-[#5F6F52]" />
-          <span className="text-[10px] font-bold">UNDO</span>
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-purple-700 via-pink-600 to-purple-500 p-0.5 shadow-[0_0_15px_rgba(219,39,119,0.5)] group-hover:scale-105 transition-all">
+            <div className="w-full h-full rounded-full bg-slate-900/90 flex items-center justify-center text-white border border-pink-400/30">
+              <RotateCcw className="w-6 h-6 sm:w-7 sm:h-7 text-pink-300" />
+            </div>
+          </div>
+          {/* Badge count at bottom right */}
+          <span className="absolute -bottom-1 -right-1 bg-rose-600 text-white text-xs font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-md">
+            {moveHistory.length}
+          </span>
+          <span className="text-[10px] font-black text-pink-200 mt-1 uppercase tracking-wider">UNDO</span>
         </button>
 
-        <button
-          onClick={handleHint}
-          disabled={isWon}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] disabled:opacity-30 text-[#4A4941] transition-all active:scale-95 cursor-pointer"
-        >
-          <Lightbulb className="w-5 h-5 text-[#86A789]" />
-          <span className="text-[10px] font-bold">HINT</span>
-        </button>
-
+        {/* Restart / Shuffle Button */}
         <button
           onClick={() => {
             audio.playClick();
             onReplayLevel();
           }}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] text-[#4A4941] transition-all active:scale-95 cursor-pointer"
+          disabled={showRestartToast}
+          className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90"
         >
-          <RefreshCw className="w-5 h-5 text-[#5F6F52]" />
-          <span className="text-[10px] font-bold">RESTART</span>
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-indigo-700 via-purple-600 to-pink-500 p-0.5 shadow-[0_0_15px_rgba(147,51,234,0.5)] group-hover:scale-105 transition-all">
+            <div className="w-full h-full rounded-full bg-slate-900/90 flex items-center justify-center text-white border border-purple-400/30">
+              <RefreshCw className="w-6 h-6 sm:w-7 sm:h-7 text-purple-300" />
+            </div>
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 text-xs font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-md">
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+          </span>
+          <span className="text-[10px] font-black text-purple-200 mt-1 uppercase tracking-wider">RESET</span>
         </button>
 
+        {/* Add Extra Bottle Button */}
         <button
-          onClick={() => {
-            audio.playClick();
-            onOpenLevelSelect();
-          }}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl hover:bg-[#FEFAE0] text-[#4A4941] transition-all active:scale-95 cursor-pointer"
+          onClick={handleAddBottle}
+          disabled={isWon || extraBottlesAdded >= 2 || showRestartToast}
+          className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90 disabled:opacity-40"
         >
-          <Zap className="w-5 h-5 text-[#86A789]" />
-          <span className="text-[10px] font-bold">LEVELS</span>
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-fuchsia-700 via-purple-600 to-indigo-500 p-0.5 shadow-[0_0_15px_rgba(192,38,211,0.5)] group-hover:scale-105 transition-all">
+            <div className="w-full h-full rounded-full bg-slate-900/90 flex items-center justify-center text-white border border-fuchsia-400/30">
+              <FlaskConical className="w-6 h-6 sm:w-7 sm:h-7 text-fuchsia-300" />
+            </div>
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 text-xs font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-md">
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+          </span>
+          <span className="text-[10px] font-black text-fuchsia-200 mt-1 uppercase tracking-wider">+TUBE</span>
+        </button>
+
+        {/* Hint Button */}
+        <button
+          onClick={handleHint}
+          disabled={isWon || showRestartToast}
+          className="group relative flex flex-col items-center justify-center cursor-pointer transition-transform active:scale-90 disabled:opacity-40"
+        >
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-500 to-amber-400 p-0.5 shadow-[0_0_15px_rgba(245,158,11,0.5)] group-hover:scale-105 transition-all">
+            <div className="w-full h-full rounded-full bg-slate-900/90 flex items-center justify-center text-white border border-amber-400/30">
+              <Lightbulb className="w-6 h-6 sm:w-7 sm:h-7 text-amber-300" />
+            </div>
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-amber-400 text-amber-950 text-xs font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-md">
+            {hintsUsed}
+          </span>
+          <span className="text-[10px] font-black text-amber-200 mt-1 uppercase tracking-wider">HINT</span>
         </button>
       </div>
 
-      {/* Level Complete Win Modal with Automatic Next Level */}
+      {/* Level Complete Win Modal */}
       {isWon && winStats && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#F7F9F2] border border-[#E0E2D9] rounded-3xl w-full max-w-sm p-6 text-[#4A4941] shadow-2xl text-center relative overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1C2541] border border-indigo-500/40 rounded-3xl w-full max-w-sm p-6 text-white shadow-2xl text-center relative overflow-hidden">
             {/* Header Fanfare Banner */}
-            <div className="inline-flex p-3 rounded-2xl bg-[#E9EDC9] text-[#5F6F52] border border-[#86A789]/40 mb-3">
+            <div className="inline-flex p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-400/30 mb-3">
               <Trophy className="w-10 h-10 animate-bounce" />
             </div>
 
-            <h2 className="text-2xl font-black tracking-tight text-[#4A4941] uppercase">
+            <h2 className="text-2xl font-black tracking-tight text-white uppercase">
               PUZZLE SOLVED!
             </h2>
-            <p className="text-xs text-[#5F6F52] mt-0.5 font-bold">
+            <p className="text-xs text-indigo-300 mt-0.5 font-bold">
               Level {levelConfig.levelNumber} Completed
             </p>
 
@@ -437,22 +549,22 @@ export const GameView: React.FC<GameViewProps> = ({
                   key={s}
                   className={`w-9 h-9 ${
                     s <= winStats.stars
-                      ? 'fill-[#86A789] text-[#86A789] scale-110'
-                      : 'text-[#E0E2D9]'
+                      ? 'fill-amber-400 text-amber-400 scale-110'
+                      : 'text-slate-700'
                   } transition-all duration-300`}
                 />
               ))}
             </div>
 
             {/* Stats Breakdown */}
-            <div className="bg-white border border-[#E0E2D9] rounded-2xl p-3 my-4 space-y-1.5 text-xs text-[#4A4941]">
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 my-4 space-y-1.5 text-xs text-white">
               <div className="flex justify-between items-center">
-                <span className="text-[#9A9B8F] font-medium">Moves Taken:</span>
-                <span className="font-bold text-[#4A4941]">{movesCount}</span>
+                <span className="text-slate-400 font-medium">Moves Taken:</span>
+                <span className="font-bold text-white">{movesCount}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[#9A9B8F] font-medium">Score Earned:</span>
-                <span className="font-bold text-[#5F6F52]">
+                <span className="text-slate-400 font-medium">Score Earned:</span>
+                <span className="font-bold text-emerald-400">
                   +{winStats.earnedScore} pts
                 </span>
               </div>
@@ -460,11 +572,11 @@ export const GameView: React.FC<GameViewProps> = ({
 
             {/* Auto-Advance Notification Banner */}
             {autoAdvanceTimer !== null && !isAutoPaused && (
-              <div className="bg-[#E9EDC9] border border-[#86A789]/50 rounded-xl p-2.5 mb-4 text-xs font-bold text-[#5F6F52] flex items-center justify-between">
-                <span>Auto-advancing to Level {levelConfig.levelNumber + 1} in {autoAdvanceTimer}s...</span>
+              <div className="bg-indigo-900/60 border border-indigo-500/50 rounded-xl p-2.5 mb-4 text-xs font-bold text-indigo-200 flex items-center justify-between">
+                <span>Next level in {autoAdvanceTimer}s...</span>
                 <button
                   onClick={() => setIsAutoPaused(true)}
-                  className="text-[10px] underline font-extrabold hover:text-[#4A4941]"
+                  className="text-[10px] underline font-extrabold hover:text-white"
                 >
                   PAUSE
                 </button>
@@ -478,7 +590,7 @@ export const GameView: React.FC<GameViewProps> = ({
                   audio.playClick();
                   onNextLevel();
                 }}
-                className="w-full py-3.5 bg-[#5F6F52] hover:bg-[#4F5F42] text-white font-black text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-sm rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer"
               >
                 <span>NEXT LEVEL NOW</span>
                 <ArrowRight className="w-5 h-5" />
@@ -490,7 +602,7 @@ export const GameView: React.FC<GameViewProps> = ({
                     audio.playClick();
                     onReplayLevel();
                   }}
-                  className="py-2.5 bg-[#FEFAE0] border border-[#E9EDC9] hover:bg-[#F2EDD0] text-xs font-bold rounded-xl text-[#4A4941] transition-colors cursor-pointer"
+                  className="py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl text-slate-200 transition-colors cursor-pointer border border-slate-700"
                 >
                   Replay
                 </button>
@@ -500,7 +612,7 @@ export const GameView: React.FC<GameViewProps> = ({
                     audio.playClick();
                     onOpenLevelSelect();
                   }}
-                  className="py-2.5 bg-[#FEFAE0] border border-[#E9EDC9] hover:bg-[#F2EDD0] text-xs font-bold rounded-xl text-[#4A4941] transition-colors cursor-pointer"
+                  className="py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl text-slate-200 transition-colors cursor-pointer border border-slate-700"
                 >
                   Level Select
                 </button>
