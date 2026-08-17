@@ -460,7 +460,7 @@ pubmatic.com, 154037, RESELLER, 5d62403b186f2ace
 lijit.com, 57729, DIRECT, fafdf38b16bf6b2b #SOVRN
 lijit.com, 57729-eb, DIRECT, fafdf38b16bf6b2b #SOVRN
 pubmatic.com, 137711, RESELLER, 5d62403b186f2ace
-contextweb.com, 563267, RESELLER, 89ff185a4c4e857c
+contextweb.com, 562263, DIRECT, 89ff185a4c4e857c
 superawesome.tv, 541, DIRECT, 706a53c9da3b4cee
 onetag.com, 753930a353d6990, DIRECT
 onetag.com, 753930a353d6990-OB, DIRECT
@@ -488,7 +488,8 @@ indexexchange.com, 194590, RESELLER, 50b1c356f2c5c8fc
 onetag.com, 69f48c2160c8113, RESELLER
 yieldmo.com, 2754490424016969782, RESELLER
 loopme.com, 11530, RESELLER, 6c8d5f95897a5a3b
-adform.com, 2020000364, DIRECT
+adform.com, 2996, RESELLER
+eskimi.com, 2020000364, DIRECT
 rubiconproject.com, 26250, RESELLER, 0bfd66d529a55807
 appnexus.com, 15670, RESELLER
 video.unrulymedia.com, 498216989, RESELLER
@@ -813,7 +814,7 @@ video.unrulymedia.com, 1295892552, RESELLER
 # RiseSSP
 risecodes.com, 65831af2a67d3600018f098a, DIRECT
 sonobi.com, 4a289cdd79, RESELLER, d1a215d9eb5aee9e
-contextweb.com, 560606, RESELLER, 89ff185a4c4e857c
+contextweb.com, 562615, RESELLER, 89ff185a4c4e857c
 themediagrid.com, 4DQHAP, RESELLER, 35d5010d7789b49d
 loopme.com, 11362, RESELLER, 6c8d5f95897a5a3b
 amxrtb.com, 105199691, RESELLER
